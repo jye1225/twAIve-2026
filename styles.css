@@ -1433,7 +1433,7 @@ blockquote.is-warning::before {
 }
 
 .brand-block h1 {
-  font-size: clamp(1.45rem, 2.4vw, 2.35rem);
+  font-size: clamp(1.35rem, 2.1vw, 2.05rem);
 }
 
 .story-stage {
@@ -2181,7 +2181,7 @@ blockquote.is-warning {
 .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .scene-art {
   inset: 0 0 auto;
   width: 100%;
-  height: clamp(126px, 12vw, 152px);
+  height: clamp(112px, 10vw, 132px);
   background: linear-gradient(135deg, #eef7ff 0%, #dbeafe 55%, #e8f4ff 100%);
 }
 
@@ -2194,14 +2194,14 @@ blockquote.is-warning {
 }
 
 .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .cast-panel {
-  min-height: clamp(126px, 12vw, 152px);
+  min-height: clamp(112px, 10vw, 132px);
   display: grid;
   grid-template-columns: minmax(240px, 330px) minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-content: center;
-  gap: 7px 28px;
+  gap: 5px 24px;
   margin: 0;
-  padding: 20px 32px;
+  padding: 16px 28px;
   border: 0;
   border-bottom: 1px solid #d9e8fb;
   background: transparent;
@@ -2220,7 +2220,7 @@ blockquote.is-warning {
   grid-row: 2;
   max-width: none;
   margin: 0;
-  font-size: clamp(1.55rem, 2.4vw, 2.35rem);
+  font-size: clamp(1.4rem, 2vw, 2rem);
   word-break: keep-all;
 }
 
@@ -2230,14 +2230,14 @@ blockquote.is-warning {
   align-self: center;
   max-width: 42rem;
   color: #24476d;
-  font-size: clamp(0.96rem, 1.25vw, 1.08rem);
-  line-height: 1.65;
+  font-size: clamp(0.9rem, 1.1vw, 1rem);
+  line-height: 1.55;
 }
 
 .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .dialogue-panel {
   width: 100%;
   margin: 0;
-  padding: clamp(28px, 4vw, 46px);
+  padding: clamp(24px, 3vw, 36px);
   border: 0;
   border-radius: 0;
   background: #ffffff;
@@ -2247,6 +2247,89 @@ blockquote.is-warning {
 .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .scene-text,
 .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) blockquote {
   max-width: none;
+}
+
+.story-stage.is-scene-stage .dialogue-panel {
+  gap: 11px;
+  align-content: start;
+}
+
+.story-stage.is-scene-stage .chapter-line {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 6px;
+  color: #075fd8;
+  background: #eef7ff;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.story-stage.is-scene-stage .dialogue-panel h3 {
+  max-width: none;
+  margin: 0 0 5px;
+  color: var(--blue-strong);
+  font-size: clamp(1.65rem, 2.6vw, 2.7rem);
+  line-height: 1.22;
+  word-break: keep-all;
+}
+
+.story-stage.is-scene-stage .scene-text {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  color: #243247;
+  font-size: clamp(0.94rem, 1.15vw, 1.04rem);
+  line-height: 1.68;
+}
+
+.scene-copy-label,
+.quote-label {
+  padding-top: 2px;
+  color: #53749c;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.story-stage.is-scene-stage blockquote {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 4px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.story-stage.is-scene-stage blockquote p {
+  margin: 0;
+}
+
+.feedback.is-pre-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #cfe3fb;
+  color: #24476d;
+  background: #f5f9ff;
+  font-size: 0.84rem;
+}
+
+.feedback.is-pre-answer strong {
+  color: #075fd8;
+}
+
+.story-stage.is-scene-stage + .choice-dock .choice-button {
+  min-height: 82px;
+  padding: 14px 16px;
+}
+
+.story-stage.is-scene-stage + .choice-dock .choice-button > span {
+  font-size: clamp(0.94rem, 1.15vw, 1.04rem);
 }
 
 .story-stage.is-assessment-stage {
@@ -2299,8 +2382,8 @@ blockquote.is-warning {
 @media (max-width: 900px) {
   .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .scene-art,
   .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .cast-panel {
-    height: 118px;
-    min-height: 118px;
+    height: 104px;
+    min-height: 104px;
   }
 
   .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .cast-panel {
@@ -2321,12 +2404,27 @@ blockquote.is-warning {
   }
 
   .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .cast-panel h2 {
-    font-size: clamp(1.45rem, 6vw, 1.9rem);
+    font-size: clamp(1.3rem, 5vw, 1.65rem);
   }
 
   .story-stage:not(.is-home-stage):not(.is-support-stage):not(.is-report-stage) .dialogue-panel,
   .story-stage.is-assessment-stage .dialogue-panel {
-    padding: 20px 18px 24px;
+    padding: 18px 16px 22px;
+  }
+
+  .story-stage.is-scene-stage .dialogue-panel h3 {
+    font-size: clamp(1.45rem, 6.2vw, 2rem);
+  }
+
+  .story-stage.is-scene-stage .scene-text,
+  .story-stage.is-scene-stage blockquote {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .scene-copy-label,
+  .quote-label {
+    padding-top: 0;
   }
 
   .story-stage.is-assessment-stage .scene-text {

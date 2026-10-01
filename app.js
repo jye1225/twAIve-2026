@@ -1523,6 +1523,15 @@ function activeScene() {
   return activeEpisode().scenes[state.sceneId];
 }
 
+function sceneStepLabel(scene) {
+  if (scene.end || /^ending$/i.test(scene.chapter || "")) {
+    return "마지막 장면";
+  }
+
+  const step = String(scene.chapter || "").match(/\d+/)?.[0];
+  return step ? `상황 ${step}` : "상황";
+}
+
 function resetScores(episode) {
   state.scores = {
     _version: SCORING_VERSION,
@@ -1576,7 +1585,7 @@ async function answerAssessment(type, option, index) {
   state.sceneStartedAt = type === "pre" ? Date.now() : null;
   state.feedback =
     type === "pre"
-      ? "사전 생각이 기록되었습니다. 이제 상황 속에서 선택해보세요."
+      ? "사전 질문을 완료했습니다. 이제 첫 번째 선택을 골라보세요."
       : "사후 생각이 기록되었습니다. 결과 리포트를 확인해보세요.";
 
   await saveEpisodeProgress();
@@ -2913,14 +2922,17 @@ function render() {
   renderTabs();
   const isAssessment = state.view === "story" && ["pre", "post", "reason"].includes(state.storyMode);
   const isReport = state.view === "story" && state.storyMode === "report";
+  const isScene = state.view === "story" && state.storyMode === "story";
   const isSupport = ["record", "learn", "profile"].includes(state.view);
   els.storyStage.classList.toggle("is-home-stage", state.view === "home");
   els.storyStage.classList.toggle("is-assessment-stage", isAssessment);
   els.storyStage.classList.toggle("is-report-stage", isReport);
+  els.storyStage.classList.toggle("is-scene-stage", isScene);
   els.storyStage.classList.toggle("is-support-stage", isSupport);
   els.choiceDock.classList.toggle("is-home-dock", state.view === "home");
   els.choiceDock.classList.toggle("is-assessment-dock", isAssessment);
   els.feedbackBox.classList.toggle("is-summary", state.view === "home" || state.view === "profile");
+  els.feedbackBox.classList.remove("is-pre-answer");
   els.quoteText.classList.toggle("is-warning", isAssessment);
   els.topicLabel.textContent = episode.topic;
   els.episodeTitle.textContent = episode.title;
@@ -2998,13 +3010,29 @@ function render() {
     els.quoteText.textContent = activeEpisode().assessment.principle;
     els.feedbackBox.textContent = "선택 기록과 사전·사후 응답이 저장되었습니다.";
   } else {
-    els.chapterLine.textContent = scene.chapter;
+    const response = activeAssessmentResponse();
+    const showPreAnswer = !state.history.length && response.pre?.answer;
+    els.chapterLine.textContent = sceneStepLabel(scene);
     els.sceneTitle.textContent = scene.title;
-    els.sceneText.textContent = scene.text;
-    els.quoteText.textContent = scene.quote || "";
-    els.feedbackBox.textContent = scene.end
-      ? `${endingName()} · 선택 기록 ${state.history.length}개. ${state.feedback || "에피소드를 끝까지 진행했습니다."}`
-      : state.feedback;
+    els.sceneText.innerHTML = `
+      <span class="scene-copy-label">지금 상황</span>
+      <p>${escapeHtml(scene.text)}</p>
+    `;
+    els.quoteText.innerHTML = scene.quote
+      ? `<span class="quote-label">친구의 말</span><p>${escapeHtml(scene.quote)}</p>`
+      : "";
+
+    if (showPreAnswer) {
+      els.feedbackBox.classList.add("is-pre-answer");
+      els.feedbackBox.innerHTML = `
+        <strong>사전 질문 완료</strong>
+        <span>내가 고른 답: ${escapeHtml(response.pre.answer)}</span>
+      `;
+    } else {
+      els.feedbackBox.textContent = scene.end
+        ? `${endingName()} · 선택 기록 ${state.history.length}개. ${state.feedback || "에피소드를 끝까지 진행했습니다."}`
+        : state.feedback;
+    }
   }
   els.scoreLabel.innerHTML = scoreBadgeHtml();
   renderMeters();
