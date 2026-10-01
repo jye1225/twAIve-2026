@@ -1781,23 +1781,23 @@ function resultSnapshotHtml() {
         <strong id="resultSnapshotTitle">${escapeHtml(analysis.profile.name)}</strong>
       </div>
       <div class="snapshot-metrics">
-        <article>
+        <article class="is-strength">
           <span>강점 원칙</span>
           <strong>${escapeHtml(strongest.name)}</strong>
           <b>${strongest.score}점</b>
         </article>
-        <article>
+        <article class="is-improve">
           <span>보완 원칙</span>
           <strong>${escapeHtml(weakest.name)}</strong>
           <b>${weakest.score}점</b>
         </article>
-        <article>
+        <article class="is-action">
           <span>적극 실천 선택</span>
           <strong>${percentLabel(analysis.proactiveRate)}</strong>
           <b>${analysis.decisionCount}개 선택 분석</b>
         </article>
       </div>
-      <p>${escapeHtml(analysis.profile.description)}</p>
+      <p class="snapshot-diagnosis"><strong>한 줄 진단</strong><span>${escapeHtml(analysis.profile.description)}</span></p>
     </section>
   `;
 }
@@ -2049,25 +2049,27 @@ function reportHtml(episode, response) {
   const diagnosis = guidelineDiagnosis();
   return `
     <div class="report-summary">
-      <article>
-        <span>윤리원칙 실천점수</span>
+      <article class="report-score">
+        <span>이번 에피소드 점수</span>
         <strong>${scoreAverage()}점</strong>
+        <small>선택에 반영된 윤리원칙의 평균</small>
       </article>
-      <article>
-        <span>엔딩</span>
+      <article class="report-ending">
+        <span>최종 결과</span>
         <strong class="ending-label ${endingClassName()}">${endingName()}</strong>
+        <small>선택 흐름에 따른 이야기 결말</small>
       </article>
-      <article>
-        <span>학습 개념</span>
+      <article class="report-concept">
+        <span>이번에 배운 핵심</span>
         <strong>${escapeHtml(episode.assessment.concept)}</strong>
+        <small>결과를 해석할 때 확인할 윤리 기준</small>
       </article>
     </div>
     ${resultSnapshotHtml()}
-    ${aiCoachHtml()}
     <details class="result-analysis">
       <summary>
-        <span>점수 분석 보기</span>
-        <strong>왜 이 점수가 나왔나요?</strong>
+        <span>상세 분석 보기</span>
+        <strong>원칙별 점수 · 선택 근거 · 정책 출처</strong>
       </summary>
       <div class="result-analysis-content">
         ${scoreBreakdownHtml()}
@@ -2101,6 +2103,7 @@ function reportHtml(episode, response) {
         </div>
       </div>
     </details>
+    ${aiCoachHtml()}
   `;
 }
 
@@ -2127,12 +2130,18 @@ function scoreBreakdownHtml() {
                 .sort((a, b) => a.level - b.level);
               const weakest = decisions[0];
               const strongest = decisions[decisions.length - 1];
+              const scoreClass = item.score >= 80 ? "is-strong" : item.score >= 60 ? "is-watch" : "is-risk";
 
               return `
-              <article>
-                <span>${escapeHtml(item.name)}</span>
-                <strong class="${item.score >= 60 ? "is-plus" : "is-minus"}">${item.score}점</strong>
-                <p>${item.count}개 선택 평가 · ${item.earned}/${item.possible}단계</p>
+              <article class="${scoreClass}">
+                <div class="principle-score-head">
+                  <span>${escapeHtml(item.name)}</span>
+                  <strong>${item.score}점</strong>
+                </div>
+                <div class="principle-score-track" aria-label="${escapeHtml(item.name)} ${item.score}점">
+                  <span style="--score-width: ${item.score}%"></span>
+                </div>
+                <p class="principle-count">${item.count}개 선택 평가 · ${item.earned}/${item.possible}단계</p>
                 <p class="principle-description">${escapeHtml(item.description)}</p>
                 ${
                   strongest
@@ -2159,11 +2168,16 @@ function scoreBreakdownHtml() {
       <p class="score-formula">원칙별 수행률 평균: (${formula}) ÷ ${items.length} = ${scoreAverage()}점</p>
       <p class="score-note">선택마다 관련 조항을 0 위반 · 1 위험 · 2 부분 충족 · 3 준수 · 4 적극 실천으로 평가합니다.</p>
       <p class="score-note">이 점수는 정부가 정한 공식 등급이나 법률 위반 판정이 아니라, 정책 원칙을 학습용 행동 기준으로 바꾼 진단 결과입니다.</p>
-      <p class="score-note">3대 가치: ${escapeHtml(NATIONAL_VALUES.join(" · "))}</p>
-      <p class="score-note">주 기준: ${escapeHtml(ETHICS_SOURCES.primary.publisher)} 「${escapeHtml(ETHICS_SOURCES.primary.title)}」 (${escapeHtml(ETHICS_SOURCES.primary.publishedAt)})</p>
-      <p class="score-note">교차 검토: 「${escapeHtml(ETHICS_SOURCES.law.title)}」 및 「${escapeHtml(ETHICS_SOURCES.education.title)}」</p>
-      <p class="score-note">상황화 참고: ${escapeHtml(activeEpisode().practiceReference)}</p>
-      <p class="score-note"><a href="${escapeAttribute(ETHICS_SOURCES.practice.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ETHICS_SOURCES.practice.publisher)} 인공지능 윤리 소통채널</a></p>
+      <details class="score-method-notes">
+        <summary>평가 기준과 출처 확인</summary>
+        <div>
+          <p class="score-note">3대 가치: ${escapeHtml(NATIONAL_VALUES.join(" · "))}</p>
+          <p class="score-note">주 기준: ${escapeHtml(ETHICS_SOURCES.primary.publisher)} 「${escapeHtml(ETHICS_SOURCES.primary.title)}」 (${escapeHtml(ETHICS_SOURCES.primary.publishedAt)})</p>
+          <p class="score-note">교차 검토: 「${escapeHtml(ETHICS_SOURCES.law.title)}」 및 「${escapeHtml(ETHICS_SOURCES.education.title)}」</p>
+          <p class="score-note">상황화 참고: ${escapeHtml(activeEpisode().practiceReference)}</p>
+          <p class="score-note"><a href="${escapeAttribute(ETHICS_SOURCES.practice.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ETHICS_SOURCES.practice.publisher)} 인공지능 윤리 소통채널</a></p>
+        </div>
+      </details>
     </section>
   `;
 }
