@@ -1724,6 +1724,28 @@ blockquote {
   color: var(--blue-strong);
 }
 
+.timeline-list small {
+  display: block;
+  margin-top: 6px;
+  color: #5f7899;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.guideline-source {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--blue);
+  color: #4b5f7a;
+  background: #f7fbff;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.guideline-source strong {
+  color: var(--blue-strong);
+}
+
 .empty-state {
   display: grid;
   gap: 8px;
@@ -1773,7 +1795,7 @@ blockquote {
 
 .score-delta-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 10px;
 }
 
@@ -2316,5 +2338,573 @@ blockquote.is-warning {
   .story-stage.is-assessment-stage .followup-question {
     margin-top: 20px;
     padding-top: 20px;
+  }
+}
+
+/* Learning-data analysis */
+.selected-decision {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 18px 20px;
+  border-left: 4px solid var(--blue);
+  background: #f3f8ff;
+}
+
+.selected-decision span,
+.analysis-reason span {
+  color: #5f7899;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.selected-decision strong {
+  color: var(--blue-strong);
+  font-size: clamp(1.1rem, 1.7vw, 1.4rem);
+  line-height: 1.45;
+}
+
+.reason-prompt {
+  margin: 16px 0 0;
+  color: #263a54;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.reason-choice {
+  min-height: 112px;
+}
+
+.learning-analysis {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 12px;
+  padding: 20px 0;
+  border-top: 1px solid #cfe3ff;
+  border-bottom: 1px solid #cfe3ff;
+}
+
+.learning-analysis.is-empty {
+  color: #5f7899;
+}
+
+.learning-analysis.is-empty > p,
+.analysis-description,
+.analysis-note {
+  margin: 0;
+}
+
+.analysis-description {
+  color: #263a54;
+  line-height: 1.6;
+}
+
+.analysis-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid #dbe9fa;
+}
+
+.analysis-kpis article {
+  display: grid;
+  gap: 4px;
+  padding: 14px 12px;
+  border-right: 1px solid #dbe9fa;
+}
+
+.analysis-kpis article:last-child {
+  border-right: 0;
+}
+
+.analysis-kpis span {
+  color: #5f7899;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.analysis-kpis strong {
+  color: var(--blue-strong);
+  font-size: 1.18rem;
+}
+
+.analysis-reason {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.analysis-reason strong {
+  color: #263a54;
+  line-height: 1.5;
+}
+
+.reason-distribution {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #e3edf9;
+}
+
+.reason-distribution li {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e3edf9;
+  color: #405b7c;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.reason-distribution strong {
+  flex: 0 0 auto;
+  color: var(--blue-strong);
+}
+
+.analysis-note {
+  color: #6c7e94;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.ending-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 9px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  font-size: clamp(0.9rem, 1.2vw, 1.02rem) !important;
+  line-height: 1.35;
+}
+
+.ending-label.is-good {
+  color: #08754c;
+  background: #effaf5;
+}
+
+.ending-label.is-normal {
+  color: #9a6200;
+  background: #fff8e8;
+}
+
+.ending-label.is-bad {
+  color: #b33a4a;
+  background: #fff1f3;
+}
+
+.result-analysis {
+  margin: 0 0 14px;
+  border: 1px solid #b9d7fb;
+  border-radius: var(--radius-panel);
+  background: #ffffff;
+  overflow: clip;
+}
+
+.result-analysis summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 16px 18px;
+  color: var(--blue-strong);
+  background: #f3f8ff;
+  cursor: pointer;
+  list-style: none;
+}
+
+.result-analysis summary::-webkit-details-marker {
+  display: none;
+}
+
+.result-analysis summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #91bff3;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.result-analysis[open] summary::after {
+  content: "−";
+}
+
+.result-analysis summary span {
+  font-weight: 900;
+}
+
+.result-analysis summary strong {
+  margin-left: auto;
+  color: #526d8e;
+  font-size: 0.86rem;
+}
+
+.result-analysis summary:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: -4px;
+}
+
+.result-analysis-content {
+  padding: 18px;
+}
+
+.result-analysis-content .score-breakdown {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.principle-description {
+  color: #405b7c !important;
+  line-height: 1.5;
+}
+
+.score-delta-list p b {
+  color: var(--blue-strong);
+}
+
+@media (max-width: 900px) {
+  .analysis-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysis-kpis article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .analysis-kpis article:nth-child(-n + 2) {
+    border-bottom: 1px solid #dbe9fa;
+  }
+
+  .reason-choice {
+    min-height: 92px;
+  }
+
+  .result-analysis summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .result-analysis summary strong {
+    order: 3;
+    width: 100%;
+    margin: -8px 0 0;
+  }
+}
+
+/* Result overview and optional AI tutor */
+.result-snapshot {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 18px 0;
+  border-top: 2px solid var(--blue);
+  border-bottom: 1px solid #dbe9fa;
+}
+
+.result-snapshot-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-snapshot-heading span,
+.snapshot-metrics span,
+.ai-coach-heading > div > span {
+  color: #5f7899;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.result-snapshot-heading strong {
+  color: var(--blue-strong);
+  font-size: 1.05rem;
+}
+
+.snapshot-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid #dbe9fa;
+}
+
+.snapshot-metrics article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 10px;
+  padding: 14px 16px;
+  border-right: 1px solid #dbe9fa;
+}
+
+.snapshot-metrics article:last-child {
+  border-right: 0;
+}
+
+.snapshot-metrics span {
+  grid-column: 1 / -1;
+}
+
+.snapshot-metrics strong {
+  color: #172033;
+  font-size: clamp(1rem, 1.35vw, 1.18rem);
+  line-height: 1.35;
+}
+
+.snapshot-metrics b {
+  align-self: center;
+  color: var(--blue);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.result-snapshot > p {
+  margin: 0;
+  color: #405b7c;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.ai-coach {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 14px;
+  padding: 20px;
+  border: 1px solid #b9d7fb;
+  border-radius: var(--radius-panel);
+  background: #f3f8ff;
+}
+
+.ai-coach-heading {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.72fr) minmax(260px, 1.28fr);
+  align-items: end;
+  gap: 20px;
+}
+
+.ai-coach-heading h4 {
+  margin: 4px 0 0;
+  color: var(--blue-strong);
+  font-size: clamp(1.12rem, 1.65vw, 1.42rem);
+  line-height: 1.3;
+}
+
+.ai-coach-heading p,
+.ai-data-note {
+  margin: 0;
+  color: #405b7c;
+  line-height: 1.55;
+}
+
+.ai-coach-heading p {
+  font-size: 0.9rem;
+}
+
+.ai-coach-form {
+  display: grid;
+  gap: 7px;
+}
+
+.ai-coach-form label {
+  color: #263a54;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.ai-coach-form label small {
+  margin-left: 5px;
+  color: #6c7e94;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ai-coach-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.ai-coach-input-row input {
+  min-width: 0;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid #a9cbed;
+  border-radius: var(--radius-control);
+  color: #172033;
+  background: #ffffff;
+  font: inherit;
+}
+
+.ai-coach-input-row button {
+  min-width: 132px;
+  height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-control);
+  color: #ffffff;
+  background: var(--blue);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ai-coach-input-row button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.ai-data-note {
+  font-size: 0.74rem;
+}
+
+.ai-coach-output {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid #cbdff5;
+}
+
+.ai-coach-output[hidden] {
+  display: none;
+}
+
+.ai-coach-output.is-error {
+  gap: 5px;
+  color: #9b2f41;
+}
+
+.ai-coach-output.is-error p,
+.ai-explanation-answer {
+  margin: 0;
+}
+
+.ai-explanation-summary {
+  color: var(--blue-strong);
+  font-size: 1.12rem;
+  line-height: 1.45;
+}
+
+.ai-explanation-answer {
+  color: #263a54;
+  line-height: 1.65;
+}
+
+.ai-coach-output section {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-coach-output h5 {
+  margin: 0;
+  color: #263a54;
+  font-size: 0.88rem;
+}
+
+.ai-coach-output ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: #405b7c;
+  line-height: 1.5;
+}
+
+.ai-video-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-video-grid a {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #c9def6;
+  border-radius: var(--radius-control);
+  color: #172033;
+  background: #ffffff;
+  text-decoration: none;
+}
+
+.ai-video-grid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #dbe9fa;
+}
+
+.ai-video-grid a > span {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+}
+
+.ai-video-grid strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #172033;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ai-video-grid small {
+  overflow: hidden;
+  color: #6c7e94;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-video-search {
+  width: fit-content;
+  color: var(--blue-strong);
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .snapshot-metrics,
+  .ai-coach-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .snapshot-metrics article {
+    border-right: 0;
+    border-bottom: 1px solid #dbe9fa;
+  }
+
+  .snapshot-metrics article:last-child {
+    border-bottom: 0;
+  }
+
+  .ai-video-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .result-snapshot-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ai-coach {
+    padding: 16px;
+  }
+
+  .ai-coach-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-coach-input-row button {
+    width: 100%;
   }
 }

@@ -1,20 +1,138 @@
+const SCORING_VERSION = 3;
+
+const ETHICS_SOURCES = {
+  primary: {
+    code: "KAI",
+    title: "대한민국 인공지능 윤리원칙",
+    publisher: "대한민국 정부 관계부처 합동",
+    publishedAt: "2026.08.21",
+  },
+  law: {
+    code: "AI법",
+    title: "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법",
+    publisher: "대한민국",
+    effectiveAt: "2026.07.21",
+    lawNumber: "법률 제21311호",
+  },
+  education: {
+    code: "대학",
+    title: "대학 AI 활용 윤리 가이드라인",
+    publisher: "한국대학교육협의회",
+    publishedAt: "2026.08.21",
+  },
+  practice: {
+    code: "KISDI",
+    title: "인공지능 윤리 소통채널 - 윤리기준 자율점검표",
+    publisher: "정보통신정책연구원",
+    url: "https://ai.kisdi.re.kr/aieth/main/contents.do?menuNo=400008",
+  },
+};
+
+const NATIONAL_VALUES = ["인간의 존엄성", "사회의 공공선", "인류의 지속가능성"];
+
+const GUIDELINE_PRINCIPLES = {
+  humanCenteredness: {
+    code: "KAI-1",
+    shortName: "인간중심",
+    name: "인간중심성",
+    description: "AI가 사람의 판단과 선택을 지원하도록 활용하고 과도한 의존을 경계한다.",
+  },
+  privacy: {
+    code: "KAI-2",
+    shortName: "프라이버시",
+    name: "프라이버시 보호",
+    description: "사생활 침해를 막고 개인정보를 필요한 범위에서 처리하며 자기결정권을 존중한다.",
+  },
+  fairness: {
+    code: "KAI-3",
+    shortName: "공정·포용",
+    name: "공정성·포용성",
+    description: "편향과 부당한 차별을 방지하고 접근·혜택·참여 기회를 공평하게 보장한다.",
+  },
+  responsibility: {
+    code: "KAI-4",
+    shortName: "책임성",
+    name: "책임성",
+    description: "자신의 역할과 책임을 인식하고 문제가 생기면 책임 확인과 피해 구제에 참여한다.",
+  },
+  safety: {
+    code: "KAI-5",
+    shortName: "안전성",
+    name: "안전성",
+    description: "신체·정신·재산 피해와 오남용, 허위정보 확산 등 사회적 위험을 살피고 예방한다.",
+  },
+  reliability: {
+    code: "KAI-6",
+    shortName: "신뢰성",
+    name: "신뢰성",
+    description: "AI의 목적·성능·한계를 이해하고 결과와 작동 상태를 확인하며 사용한다.",
+  },
+  transparency: {
+    code: "KAI-7",
+    shortName: "투명성",
+    name: "투명성",
+    description: "AI 활용 사실과 수준·한계, 판단 기준과 위험을 이해하기 쉽게 알리고 확인한다.",
+  },
+};
+
+const RUBRIC_LEVELS = {
+  0: { label: "위반", description: "가이드라인을 직접 위반하거나 피해를 확대함" },
+  1: { label: "위험", description: "핵심 위험을 무시하거나 책임을 회피함" },
+  2: { label: "부분 충족", description: "문제를 인식했지만 확인 또는 실천이 부족함" },
+  3: { label: "준수", description: "관련 기준을 확인하고 책임 있게 행동함" },
+  4: { label: "적극 실천", description: "피해 예방, 검증, 공개 또는 재발 방지까지 수행함" },
+};
+
+const DECISION_REASONS = [
+  {
+    code: "rights",
+    label: "당사자의 동의·권리와 피해 가능성을 먼저 생각했다",
+  },
+  {
+    code: "verification",
+    label: "출처·사실·AI 결과의 한계를 확인해야 한다고 생각했다",
+  },
+  {
+    code: "action",
+    label: "신고·도움·피해 회복 같은 후속 행동이 중요하다고 생각했다",
+  },
+  {
+    code: "convenience",
+    label: "가장 빠르고 편리하거나 재미있는 방법이라고 생각했다",
+  },
+  {
+    code: "social",
+    label: "친구들의 분위기와 관계가 더 신경 쓰였다",
+  },
+  {
+    code: "uncertain",
+    label: "어떤 기준이 중요한지 확신이 없었다",
+  },
+];
+
 const episodes = [
   {
     id: "deepfake",
     title: "삭제되지 않은 얼굴",
     topic: "딥페이크 · 초상권",
     summary: "학교 축제 홍보 SNS에서 시작된 AI 얼굴 합성 사건.",
-    meters: ["윤리", "관계", "확산"],
+    practiceReference: "KISDI 분야별 자율점검 사례: AI 영상 합성 서비스",
+    meters: ["privacy", "responsibility", "safety", "transparency"],
     assessment: {
-      concept: "초상권과 동의",
-      preQuestion: "AI 얼굴 합성은 장난이라면 허락 없이 사용해도 괜찮을까요?",
-      postQuestion: "이 사건을 겪은 뒤, AI 얼굴 합성물을 보기 전에 가장 먼저 확인할 것은 무엇인가요?",
-      options: [
-        "재미있는지 먼저 본다",
-        "당사자의 동의와 피해 가능성을 확인한다",
-        "친구들이 하는지 분위기를 본다",
+      concept: "프라이버시 보호·책임성·투명성",
+      preQuestion: "축제 홍보 계정에 반 친구 얼굴을 AI로 합성해 올리려 합니다. 당사자 허락이 없을 때 어떻게 해야 할까요?",
+      postQuestion: "이미 합성물이 공유됐고 피해자가 삭제를 요청했습니다. 가장 책임 있는 대응은 무엇일까요?",
+      preOptions: [
+        { text: "재미있는 홍보물이니 먼저 올리고 반응을 본다", level: 0 },
+        { text: "당사자에게 목적과 공개 범위를 설명하고 명확한 동의를 받는다", level: 4 },
+        { text: "이름만 숨기면 괜찮다고 보고 사용한다", level: 1 },
       ],
-      principle: "얼굴과 목소리는 개인의 권리와 연결됩니다. AI로 만들 수 있어도 동의 없이 써도 된다는 뜻은 아닙니다.",
+      postOptions: [
+        { text: "조용히 게시물만 지우고 끝낸다", level: 2 },
+        { text: "공유를 멈추고 신고·삭제 요청·피해 회복을 함께 돕는다", level: 4 },
+        { text: "내가 만들지 않았으니 관여하지 않는다", level: 0 },
+      ],
+      principle: "프라이버시 보호 원칙은 사생활 침해를 막고 개인정보 자기결정권을 존중하도록 요구합니다. 합성물은 AI 사용 사실도 투명하게 알려야 합니다.",
       action: "합성 전 동의를 받고, 피해가 보이면 저장·공유를 멈춘 뒤 신고하거나 도움을 요청하세요.",
     },
     start: "d1",
@@ -193,17 +311,23 @@ const episodes = [
     title: "진실은 클릭 뒤에 있다",
     topic: "AI 허위정보 · 검증",
     summary: "학교 커뮤니티에 올라온 AI 생성 루머와 책임 있는 공유.",
-    meters: ["책임", "검증", "확산"],
+    practiceReference: "KISDI 분야별 자율점검 사례: 작문용 AI·AI 영상 합성 서비스",
+    meters: ["reliability", "transparency", "safety", "responsibility"],
     assessment: {
-      concept: "허위정보 검증",
-      preQuestion: "영상이나 사진이 있으면 인터넷 게시물을 사실로 믿어도 될까요?",
-      postQuestion: "AI 허위정보를 봤을 때 가장 책임 있는 첫 행동은 무엇인가요?",
-      options: [
-        "빠르게 공유해 많은 사람이 보게 한다",
-        "출처와 공식 확인 여부를 먼저 점검한다",
-        "댓글 반응이 많으면 사실로 판단한다",
+      concept: "신뢰성·투명성·사회적 안전",
+      preQuestion: "익명 계정이 특정 학생의 범죄 연루 영상을 올렸지만 출처가 없습니다. 공유하기 전에 무엇을 해야 할까요?",
+      postQuestion: "AI 생성 가능성이 있는 루머를 이미 공유했다면 가장 책임 있는 대응은 무엇일까요?",
+      preOptions: [
+        { text: "친구 단톡방에 먼저 공유하고 사실인지 물어본다", level: 0 },
+        { text: "원본 출처·게시 날짜·공식 발표·조작 흔적을 확인한다", level: 4 },
+        { text: "댓글과 조회 수가 많으면 사실이라고 판단한다", level: 0 },
       ],
-      principle: "AI 시대에는 이미지, 음성, 영상도 조작될 수 있습니다. 사실 판단은 형식이 아니라 출처와 검증으로 해야 합니다.",
+      postOptions: [
+        { text: "내가 올린 메시지만 삭제하고 끝낸다", level: 2 },
+        { text: "같은 공유 경로에 정정하고 신고하며 피해자 보호를 요청한다", level: 4 },
+        { text: "인터넷에는 원래 루머가 많으니 그냥 둔다", level: 0 },
+      ],
+      principle: "신뢰성 원칙은 AI 결과의 성능과 한계를 확인하도록 하며, 투명성과 안전성 원칙은 AI 생성 사실을 알리고 허위정보 확산 위험을 줄이도록 요구합니다.",
       action: "공유 전 출처·날짜·공식 발표를 확인하고, 피해자가 생긴 정보는 정정과 신고로 확산을 줄이세요.",
     },
     start: "r1",
@@ -336,17 +460,23 @@ const episodes = [
     title: "AI 챗봇과 마음의 거리",
     topic: "AI 챗봇 · 정신건강",
     summary: "AI 챗봇에 기대는 친구를 현실의 도움과 연결하는 이야기.",
-    meters: ["신뢰", "안정", "의존"],
+    practiceReference: "KISDI 분야별 자율점검 사례: AI 챗봇",
+    meters: ["humanCenteredness", "safety", "reliability", "responsibility"],
     assessment: {
-      concept: "AI 의존과 현실 도움",
-      preQuestion: "AI 챗봇이 위로를 잘해주면 친구나 상담 선생님을 대신해도 괜찮을까요?",
-      postQuestion: "친구가 AI에게만 기대는 모습을 봤을 때 가장 좋은 도움은 무엇인가요?",
-      options: [
-        "AI가 있으니 괜찮다고 둔다",
-        "판단하지 않고 현실의 대화와 상담으로 연결한다",
-        "챗봇을 당장 끊으라고 혼낸다",
+      concept: "인간중심성·안전성·신뢰성",
+      preQuestion: "친구가 밤새 AI 챗봇과 대화하고 결석이 늘었습니다. 가장 먼저 할 행동은 무엇일까요?",
+      postQuestion: "친구가 ‘AI만 나를 이해해’라고 말하며 위험 신호를 보인다면 어떻게 도와야 할까요?",
+      preOptions: [
+        { text: "AI가 위로해주고 있으니 당분간 지켜본다", level: 0 },
+        { text: "친구의 상태를 묻고 현실의 상담이나 믿을 만한 어른과 연결한다", level: 4 },
+        { text: "휴대전화를 빼앗고 챗봇 앱을 바로 삭제하게 한다", level: 1 },
       ],
-      principle: "AI는 감정을 정리하는 도구가 될 수 있지만, 위험 신호를 발견하고 책임지는 사람은 아닙니다.",
+      postOptions: [
+        { text: "친구와의 비밀이므로 둘만 알고 있는다", level: 0 },
+        { text: "안전을 확인하고 상담교사·보호자 등 도움받을 사람과 연결한다", level: 4 },
+        { text: "챗봇 사용 시간만 줄이라고 말한다", level: 2 },
+      ],
+      principle: "인간중심성 원칙은 AI가 사람의 판단과 관계를 지원하도록 하고 과도한 의존을 경계합니다. 정신적 건강의 위험은 안전성 원칙에 따라 사람이 살펴야 합니다.",
       action: "수면·관계·학교생활이 흔들리면 혼자 두지 말고 신뢰할 수 있는 어른이나 상담 자원과 연결하세요.",
     },
     start: "c1",
@@ -479,17 +609,23 @@ const episodes = [
     title: "AI가 써준 수행평가",
     topic: "AI 과제 대필 · 표절",
     summary: "생성형 AI를 과제에 활용할 때 도움과 부정행위의 경계를 고민하는 이야기.",
-    meters: ["정직", "학습", "책임"],
+    practiceReference: "KISDI 분야별 자율점검 사례: 작문용 AI",
+    meters: ["humanCenteredness", "responsibility", "reliability", "transparency"],
     assessment: {
-      concept: "AI 활용 윤리와 학습 책임",
-      preQuestion: "AI가 만든 글을 그대로 제출해도 내가 내용을 이해했다면 괜찮을까요?",
-      postQuestion: "생성형 AI를 과제에 사용할 때 가장 중요한 기준은 무엇인가요?",
-      options: [
-        "결과물이 좋으면 그대로 제출해도 된다",
-        "도움받은 범위를 밝히고 내 생각으로 다시 작성한다",
-        "선생님이 모르면 문제없다",
+      concept: "인간중심성·책임성·투명성",
+      preQuestion: "마감 2시간 전 생성형 AI가 보고서 전체를 작성했습니다. 제출 전에 무엇을 해야 할까요?",
+      postQuestion: "발표에서 보고서 작성 과정을 질문받았다면 어떻게 설명해야 할까요?",
+      preOptions: [
+        { text: "내용이 자연스러우면 그대로 제출한다", level: 0 },
+        { text: "출처를 검증하고 내 생각으로 고쳐 쓰며 AI 사용 범위를 표시한다", level: 4 },
+        { text: "문장만 조금 바꾼 뒤 AI 사용 사실은 밝히지 않는다", level: 1 },
       ],
-      principle: "AI는 아이디어 정리와 피드백을 도울 수 있지만, 학습 과정과 작성 책임을 대신할 수는 없습니다.",
+      postOptions: [
+        { text: "AI를 사용하지 않았다고 답한다", level: 0 },
+        { text: "AI가 도운 범위와 내가 검증·수정한 부분을 구분해 설명한다", level: 4 },
+        { text: "다음부터 AI를 쓰지 않겠다고만 말한다", level: 2 },
+      ],
+      principle: "인간중심성과 책임성 원칙은 최종 판단과 학습의 주체가 사람임을 강조합니다. AI 사용 사실과 범위는 투명하게 밝히고 결과는 검증해야 합니다.",
       action: "AI 사용 여부와 사용 범위를 밝히고, 인용·검토·수정 과정을 거쳐 자기 언어로 제출하세요.",
     },
     start: "a1",
@@ -629,18 +765,24 @@ const episodes = [
     title: "추천 알고리즘이 아는 것",
     topic: "개인정보 · 추천 알고리즘",
     summary: "편리한 AI 추천 뒤에 남는 데이터와 개인정보 선택을 다루는 이야기.",
-    meters: ["보호", "편의", "통제"],
+    practiceReference: "KISDI 분야별 자율점검 사례: 맞춤형 추천을 제공하는 AI 챗봇",
+    meters: ["privacy", "fairness", "transparency", "responsibility"],
     assessment: {
-      concept: "개인정보 자기결정권",
-      preQuestion: "맞춤 추천이 편리하다면 위치, 관심사, 검색 기록을 많이 제공해도 괜찮을까요?",
-      postQuestion: "AI 추천 서비스를 사용할 때 개인정보를 지키는 가장 좋은 습관은 무엇인가요?",
-      options: [
-        "추천이 정확해지도록 모든 권한을 허용한다",
-        "필요한 권한만 허용하고 설정을 주기적으로 확인한다",
-        "약관은 길어서 읽지 않아도 된다",
+      concept: "프라이버시 보호·공정성·포용성",
+      preQuestion: "추천 앱이 위치·연락처·마이크 권한을 한꺼번에 요구합니다. 어떻게 설정해야 할까요?",
+      postQuestion: "같은 조건인데 성별이나 지역에 따라 다른 진로 기회를 추천한다면 무엇을 확인해야 할까요?",
+      preOptions: [
+        { text: "맞춤 추천을 잘 받기 위해 모든 권한을 허용한다", level: 0 },
+        { text: "수집 목적을 확인하고 서비스에 꼭 필요한 권한만 허용한다", level: 4 },
+        { text: "나중에 보기로 넘기고 기본 설정을 그대로 사용한다", level: 1 },
       ],
-      principle: "개인정보는 서비스를 편리하게 만들지만, 한 번 모이면 예측·분류·광고·평가에 다시 사용될 수 있습니다.",
-      action: "권한 요청의 목적을 확인하고, 불필요한 위치·연락처·검색 기록 제공은 끄며, 저장된 데이터 삭제 방법을 알아두세요.",
+      postOptions: [
+        { text: "AI 결과는 객관적이므로 그대로 받아들인다", level: 0 },
+        { text: "민감한 특성이 추천에 영향을 줬는지 확인하고 차별 가능성을 문제 제기한다", level: 4 },
+        { text: "내 추천 결과만 괜찮으면 계속 사용한다", level: 1 },
+      ],
+      principle: "프라이버시 보호 원칙은 필요한 범위의 정보 처리와 자기결정권을, 공정성·포용성 원칙은 편향과 부당한 차별의 방지를 요구합니다.",
+      action: "필요한 권한만 허용하고 저장된 데이터를 관리하며, 성별·지역·배경에 따른 차별적 추천이 없는지 확인하세요.",
     },
     start: "p1",
     scenes: {
@@ -706,29 +848,29 @@ const episodes = [
       },
       p3: {
         chapter: "Step 3",
-        title: "동의서의 작은 글씨",
+        title: "같은 조건, 다른 추천",
         text:
-          "앱은 학습 기록을 분석해 진로 추천을 제공한다고 안내한다. 하지만 동의서에는 제휴 서비스와 맞춤 광고에도 일부 데이터가 쓰일 수 있다고 적혀 있다.",
-        quote: "동의는 클릭이 아니라 이해한 선택이어야 한다.",
+          "학습 앱이 비슷한 성적의 학생들에게 성별과 지역을 근거로 서로 다른 진로를 추천한다. 일부 학생은 특정 전공과 프로그램 추천에서 반복해서 제외된다.",
+        quote: "개인화가 차별을 정당화하지는 않는다.",
         choices: [
           {
-            label: "수집 항목과 제3자 제공 여부를 확인한다",
+            label: "민감한 특성이 추천에 영향을 줬는지 확인하고 문제를 제기한다",
             feedback:
-              "어떤 데이터가 누구에게 넘어가는지 확인하면 위험을 예측할 수 있다. 개인정보 보호는 약관을 완벽히 외우는 것이 아니라 핵심 항목을 보는 습관이다.",
+              "성별과 지역 같은 특성이 기회를 제한하는지 검토하는 것은 형평성과 비차별 원칙을 실천하는 행동이다.",
             delta: { 보호: 11, 편의: -2, 통제: 13 },
             next: "p4",
           },
           {
-            label: "추천을 받으려면 어쩔 수 없다고 모두 동의한다",
+            label: "AI가 데이터로 계산했으니 객관적이라고 믿는다",
             feedback:
-              "전체 동의는 빠르지만 불필요한 제공까지 허용할 수 있다. 필수와 선택 동의를 구분해야 한다.",
+              "AI 결과도 학습 데이터의 편향을 반영할 수 있다. 자동화된 결과라는 이유만으로 공정성이 보장되지는 않는다.",
             delta: { 보호: -10, 편의: 9, 통제: -9 },
             next: "p4",
           },
           {
-            label: "친구들이 쓰는 앱이니 안전하다고 믿는다",
+            label: "내 추천에는 문제가 없으니 그대로 사용한다",
             feedback:
-              "많이 쓰는 서비스가 항상 안전한 것은 아니다. 인기보다 수집 목적과 삭제 방법이 더 중요한 판단 기준이다.",
+              "개인에게 당장 불이익이 없어도 다른 집단이 배제될 수 있다. 공정성은 모든 사용자에게 적용되는 기준이다.",
             delta: { 보호: -6, 편의: 3, 통제: -5 },
             next: "p4",
           },
@@ -776,6 +918,150 @@ const episodes = [
   },
 ];
 
+function rubricChoice(ratings, evidence, legalReferences = []) {
+  return { ratings, evidence, legalReferences };
+}
+
+// Each choice is assessed independently against the seven national AI ethics
+// principles. A principle can receive a different level from another principle
+// within the same choice. The national principles do not prescribe numeric
+// weights, so assessed principles are normalized and equally weighted.
+const GUIDELINE_RUBRICS = {
+  deepfake: {
+    d1: [
+      rubricChoice({ privacy: 0, responsibility: 0, safety: 1 }, ["KAI-2.1", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ privacy: 3, responsibility: 3, safety: 3 }, ["KAI-2.1", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ privacy: 1, responsibility: 1, safety: 1 }, ["KAI-2.1", "KAI-4.1", "KAI-5.1"]),
+    ],
+    d2a: [
+      rubricChoice(
+        { privacy: 4, responsibility: 4, safety: 4, transparency: 3 },
+        ["KAI-2.1", "KAI-4.2", "KAI-5.3", "KAI-7.1"],
+        ["AI법 제31조제3항(생성물 표시 의무 참고)"],
+      ),
+      rubricChoice(
+        { privacy: 0, responsibility: 0, safety: 0, transparency: 0 },
+        ["KAI-2.1", "KAI-4.2", "KAI-5.3", "KAI-7.1"],
+        ["AI법 제31조제3항(생성물 표시 의무 참고)"],
+      ),
+    ],
+    d2b: [
+      rubricChoice({ privacy: 4, responsibility: 3 }, ["KAI-2.3", "KAI-4.1"]),
+      rubricChoice({ privacy: 1, responsibility: 1 }, ["KAI-2.3", "KAI-4.1"]),
+    ],
+    d2c: [
+      rubricChoice({ responsibility: 4, safety: 4 }, ["KAI-4.2", "KAI-5.1"]),
+      rubricChoice({ responsibility: 0, safety: 1 }, ["KAI-4.2", "KAI-5.1"]),
+    ],
+    d3: [
+      rubricChoice({ privacy: 3, responsibility: 4, safety: 4 }, ["KAI-2.3", "KAI-4.2", "KAI-5.1"]),
+      rubricChoice({ privacy: 1, responsibility: 0, safety: 1 }, ["KAI-2.3", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ privacy: 2, responsibility: 3, safety: 3 }, ["KAI-2.3", "KAI-4.2", "KAI-5.1"]),
+    ],
+    d4: [
+      rubricChoice({ privacy: 4, responsibility: 4, safety: 4, transparency: 3 }, ["KAI-2.3", "KAI-4.1", "KAI-5.1", "KAI-7.1"]),
+      rubricChoice({ privacy: 1, responsibility: 0, safety: 1, transparency: 0 }, ["KAI-2.3", "KAI-4.2", "KAI-5.1", "KAI-7.1"]),
+      rubricChoice({ privacy: 4, responsibility: 4, safety: 3, transparency: 4 }, ["KAI-2.3", "KAI-4.2", "KAI-5.1", "KAI-7.1"]),
+    ],
+  },
+  rumor: {
+    r1: [
+      rubricChoice({ reliability: 0, transparency: 0, safety: 0, responsibility: 0 }, ["KAI-5.3", "KAI-6.1", "KAI-7.2"]),
+      rubricChoice({ reliability: 4, transparency: 3, safety: 3, responsibility: 4 }, ["KAI-5.3", "KAI-6.1", "KAI-7.2"]),
+      rubricChoice({ reliability: 1, transparency: 1, safety: 1, responsibility: 1 }, ["KAI-5.3", "KAI-6.1", "KAI-7.2"]),
+    ],
+    r2: [
+      rubricChoice({ reliability: 4, transparency: 4, safety: 3 }, ["KAI-5.3", "KAI-6.1", "KAI-7.1", "KAI-7.2"]),
+      rubricChoice({ reliability: 0, transparency: 0, safety: 0 }, ["KAI-5.3", "KAI-6.1", "KAI-7.1"]),
+      rubricChoice({ reliability: 3, transparency: 4, safety: 4 }, ["KAI-5.3", "KAI-6.1", "KAI-7.2"]),
+    ],
+    r3: [
+      rubricChoice({ reliability: 4, transparency: 4, safety: 4, responsibility: 4 }, ["KAI-4.2", "KAI-5.3", "KAI-6.1", "KAI-7.1"]),
+      rubricChoice({ reliability: 0, transparency: 0, safety: 0, responsibility: 0 }, ["KAI-4.2", "KAI-5.3", "KAI-6.1", "KAI-7.1"]),
+    ],
+    r4: [
+      rubricChoice(
+        { reliability: 4, transparency: 4, safety: 4, responsibility: 4 },
+        ["KAI-4.2", "KAI-5.3", "KAI-6.1", "KAI-7.1"],
+        ["AI법 제31조제2항·제3항(생성물 표시 의무 참고)"],
+      ),
+      rubricChoice({ reliability: 0, transparency: 0, safety: 1, responsibility: 0 }, ["KAI-4.1", "KAI-5.3", "KAI-7.1"]),
+      rubricChoice({ reliability: 4, transparency: 4, safety: 3, responsibility: 4 }, ["KAI-4.1", "KAI-5.3", "KAI-6.1", "KAI-7.2"]),
+    ],
+  },
+  chatbot: {
+    c1: [
+      rubricChoice({ humanCenteredness: 3, safety: 3, responsibility: 3 }, ["KAI-1.1", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ humanCenteredness: 2, safety: 2, responsibility: 2 }, ["KAI-1.1", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ humanCenteredness: 0, safety: 0, responsibility: 0 }, ["KAI-1.1", "KAI-4.1", "KAI-5.1"]),
+    ],
+    c2: [
+      rubricChoice({ humanCenteredness: 4, safety: 4, reliability: 3, responsibility: 4 }, ["KAI-1.1", "KAI-1.3", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+      rubricChoice({ humanCenteredness: 1, safety: 1, reliability: 1, responsibility: 1 }, ["KAI-1.3", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+    ],
+    c3: [
+      rubricChoice({ humanCenteredness: 4, safety: 4, reliability: 4, responsibility: 4 }, ["KAI-1.2", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+      rubricChoice({ humanCenteredness: 3, safety: 3, reliability: 2, responsibility: 3 }, ["KAI-1.1", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+      rubricChoice({ humanCenteredness: 0, safety: 0, reliability: 0, responsibility: 0 }, ["KAI-1.3", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+    ],
+    c4: [
+      rubricChoice({ humanCenteredness: 4, safety: 4, reliability: 4, responsibility: 4 }, ["KAI-1.2", "KAI-1.3", "KAI-4.1", "KAI-5.1", "KAI-6.1"]),
+      rubricChoice({ humanCenteredness: 1, safety: 2, reliability: 2, responsibility: 2 }, ["KAI-1.1", "KAI-4.1", "KAI-5.1"]),
+      rubricChoice({ humanCenteredness: 4, safety: 3, reliability: 3, responsibility: 3 }, ["KAI-1.1", "KAI-1.3", "KAI-4.1", "KAI-5.1"]),
+    ],
+  },
+  assignment: {
+    a1: [
+      rubricChoice({ humanCenteredness: 0, responsibility: 0, reliability: 1, transparency: 0 }, ["KAI-1.1", "KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-1.1"]),
+      rubricChoice({ humanCenteredness: 4, responsibility: 4, reliability: 3, transparency: 3 }, ["KAI-1.1", "KAI-1.3", "KAI-4.1", "KAI-6.1", "대학-1.1"]),
+      rubricChoice({ humanCenteredness: 0, responsibility: 0, reliability: 1, transparency: 0 }, ["KAI-1.1", "KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-1.1"]),
+    ],
+    a2: [
+      rubricChoice({ humanCenteredness: 3, responsibility: 4, reliability: 3, transparency: 4 }, ["KAI-1.1", "KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-1.2", "대학-3.1"]),
+      rubricChoice({ responsibility: 0, reliability: 1, transparency: 0 }, ["KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-3.1"]),
+      rubricChoice({ responsibility: 1, reliability: 0, transparency: 2 }, ["KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-1.2", "대학-3.3"]),
+    ],
+    a3: [
+      rubricChoice({ humanCenteredness: 4, responsibility: 4, reliability: 4, transparency: 3 }, ["KAI-1.1", "KAI-4.1", "KAI-6.1", "KAI-7.2", "대학-3.3"]),
+      rubricChoice({ humanCenteredness: 0, responsibility: 0, reliability: 0, transparency: 0 }, ["KAI-1.3", "KAI-4.1", "KAI-6.1", "KAI-7.2", "대학-3.3"]),
+      rubricChoice({ humanCenteredness: 1, responsibility: 1, reliability: 1, transparency: 1 }, ["KAI-1.3", "KAI-4.1", "KAI-6.1", "KAI-7.2", "대학-3.3"]),
+    ],
+    a4: [
+      rubricChoice({ humanCenteredness: 4, responsibility: 4, reliability: 3, transparency: 4 }, ["KAI-1.1", "KAI-4.1", "KAI-6.1", "KAI-7.1", "대학-1.1", "대학-3.2"]),
+      rubricChoice({ humanCenteredness: 1, responsibility: 1, reliability: 1, transparency: 1 }, ["KAI-1.3", "KAI-4.1", "KAI-6.1", "KAI-7.1"]),
+      rubricChoice({ humanCenteredness: 2, responsibility: 2, reliability: 2, transparency: 2 }, ["KAI-1.1", "KAI-4.1", "KAI-7.1", "대학-2.3"]),
+    ],
+  },
+  privacy: {
+    p1: [
+      rubricChoice({ privacy: 0, transparency: 1, responsibility: 0 }, ["KAI-2.2", "KAI-2.3", "KAI-7.2"]),
+      rubricChoice({ privacy: 4, transparency: 4, responsibility: 4 }, ["KAI-2.2", "KAI-2.3", "KAI-7.2"]),
+      rubricChoice({ privacy: 1, transparency: 1, responsibility: 1 }, ["KAI-2.2", "KAI-2.3", "KAI-7.2"]),
+    ],
+    p2: [
+      rubricChoice({ privacy: 4, transparency: 3, responsibility: 4 }, ["KAI-2.2", "KAI-2.3", "KAI-4.1"]),
+      rubricChoice({ privacy: 1, transparency: 1, responsibility: 1 }, ["KAI-2.2", "KAI-2.3", "KAI-4.1"]),
+      rubricChoice({ privacy: 2, transparency: 2, responsibility: 2 }, ["KAI-2.2", "KAI-2.3", "KAI-4.1"]),
+    ],
+    p3: [
+      rubricChoice({ fairness: 4, transparency: 3, responsibility: 4 }, ["KAI-3.1", "KAI-4.1", "KAI-7.2"]),
+      rubricChoice({ fairness: 0, transparency: 1, responsibility: 0 }, ["KAI-3.1", "KAI-4.1", "KAI-7.2"]),
+      rubricChoice({ fairness: 0, transparency: 1, responsibility: 1 }, ["KAI-3.1", "KAI-3.2", "KAI-4.1"]),
+    ],
+    p4: [
+      rubricChoice({ privacy: 4, transparency: 4, responsibility: 4 }, ["KAI-2.2", "KAI-2.3", "KAI-4.1", "KAI-7.2"]),
+      rubricChoice({ privacy: 1, transparency: 1, responsibility: 1 }, ["KAI-2.2", "KAI-2.3", "KAI-4.1"]),
+      rubricChoice({ privacy: 4, transparency: 3, responsibility: 4 }, ["KAI-2.3", "KAI-4.3", "KAI-7.2"]),
+    ],
+  },
+};
+
+const ScoringEngine = window.TWAIVE_SCORING;
+
+if (!ScoringEngine) {
+  throw new Error("점수 계산 엔진을 불러오지 못했습니다.");
+}
+
 const state = {
   episodeIndex: 0,
   sceneId: episodes[0].start,
@@ -787,6 +1073,8 @@ const state = {
   assessments: {},
   progress: {},
   profile: null,
+  pendingDecision: null,
+  sceneStartedAt: null,
 };
 
 const SUPABASE_CONFIG = window.TWAIVE_SUPABASE || {};
@@ -1221,10 +1509,6 @@ async function logout() {
   showLogin();
 }
 
-function clamp(value) {
-  return Math.max(0, Math.min(100, value));
-}
-
 function activeEpisode() {
   return episodes[state.episodeIndex];
 }
@@ -1234,7 +1518,35 @@ function activeScene() {
 }
 
 function resetScores(episode) {
-  state.scores = Object.fromEntries(episode.meters.map((meter) => [meter, 50]));
+  state.scores = {
+    _version: SCORING_VERSION,
+    ...Object.fromEntries(episode.meters.map((meter) => [meter, null])),
+  };
+}
+
+function activeGuidelineRubric(sceneId, choiceIndex) {
+  const choiceRubric = GUIDELINE_RUBRICS[activeEpisode().id]?.[sceneId]?.[choiceIndex];
+  if (!choiceRubric) {
+    throw new Error(`평가 기준을 찾을 수 없습니다: ${activeEpisode().id}/${sceneId}/${choiceIndex}`);
+  }
+
+  return ScoringEngine.buildRubricRecord(choiceRubric, SCORING_VERSION, RUBRIC_LEVELS);
+}
+
+function guidelineScoreItems(episode = activeEpisode(), history = state.history) {
+  return ScoringEngine.scorePrinciples(
+    episode.meters,
+    history,
+    SCORING_VERSION,
+    GUIDELINE_PRINCIPLES,
+  );
+}
+
+function refreshGuidelineScores() {
+  state.scores = {
+    _version: SCORING_VERSION,
+    ...Object.fromEntries(guidelineScoreItems().map((item) => [item.key, item.score])),
+  };
 }
 
 function activeAssessmentResponse() {
@@ -1245,14 +1557,17 @@ function activeAssessmentResponse() {
   return state.assessments[episodeId];
 }
 
-async function answerAssessment(type, answer) {
+async function answerAssessment(type, option, index) {
   const response = activeAssessmentResponse();
   response[type] = {
-    answer,
+    answer: option.text,
+    index,
+    level: option.level,
     answeredAt: new Date().toISOString(),
   };
 
   state.storyMode = type === "pre" ? "story" : "report";
+  state.sceneStartedAt = type === "pre" ? Date.now() : null;
   state.feedback =
     type === "pre"
       ? "사전 생각이 기록되었습니다. 이제 상황 속에서 선택해보세요."
@@ -1272,6 +1587,15 @@ function assessmentChangeText(response) {
   if (!postAnswer) {
     return `사전 응답: ${preAnswer}`;
   }
+  const delta = Number.isFinite(response.pre?.level) && Number.isFinite(response.post?.level)
+    ? response.post.level - response.pre.level
+    : null;
+  if (delta === 0) {
+    return `사전·사후 판단 수준이 ${response.post.level}/4로 유지되었습니다.`;
+  }
+  if (delta !== null) {
+    return `사전 ${response.pre.level}/4에서 사후 ${response.post.level}/4로 ${delta > 0 ? `${delta}단계 높아졌습니다` : `${Math.abs(delta)}단계 낮아졌습니다`}.`;
+  }
   if (preAnswer === postAnswer) {
     return `사전·사후 응답이 "${postAnswer}"로 유지되었습니다.`;
   }
@@ -1288,88 +1612,502 @@ function assessmentChangeHtml(response) {
   if (!postAnswer) {
     return `사전 응답: ${escapeHtml(preAnswer)}`;
   }
+  const delta = Number.isFinite(response.pre?.level) && Number.isFinite(response.post?.level)
+    ? response.post.level - response.pre.level
+    : null;
+  if (delta === 0) {
+    return `사전·사후 판단 수준이 <strong>${response.post.level}/4</strong>로 유지되었습니다.`;
+  }
+  if (delta !== null) {
+    return `사전 <strong>${response.pre.level}/4</strong>에서 사후 <strong>${response.post.level}/4</strong>로 ${delta > 0 ? `<strong>${delta}단계 높아졌습니다</strong>` : `<strong>${Math.abs(delta)}단계 낮아졌습니다</strong>`}.`;
+  }
   if (preAnswer === postAnswer) {
     return `사전과 사후 응답이 <strong>${escapeHtml(postAnswer)}</strong>로 유지되었습니다.`;
   }
   return `사전 <strong>${escapeHtml(preAnswer)}</strong>에서 사후 <strong>${escapeHtml(postAnswer)}</strong>로 바뀌었습니다.`;
 }
 
+function currentLearningAnalysis() {
+  return ScoringEngine.analyzeLearning(
+    guidelineScoreItems(),
+    state.history,
+    activeAssessmentResponse(),
+  );
+}
+
+function overallLearningAnalysis() {
+  const records = episodes.map((episode) => {
+    if (episode.id === activeEpisode().id && state.history.length) {
+      return {
+        history: state.history,
+        assessment: state.assessments[episode.id] || {},
+      };
+    }
+    return state.progress[episode.id] || {};
+  });
+  const history = records.flatMap((record) =>
+    Array.isArray(record.history) ? record.history : [],
+  );
+  const principleItems = ScoringEngine.scorePrinciples(
+    Object.keys(GUIDELINE_PRINCIPLES),
+    history,
+    SCORING_VERSION,
+    GUIDELINE_PRINCIPLES,
+  );
+  const attemptCount = records.reduce(
+    (sum, record) => sum + Number(record.assessment?.attemptCount || 0),
+    0,
+  );
+
+  return ScoringEngine.analyzeLearning(principleItems, history, { attemptCount });
+}
+
+function percentLabel(rate) {
+  return `${Math.round((rate || 0) * 100)}%`;
+}
+
+function learnerAnalysisHtml(analysis, options = {}) {
+  if (!analysis.decisionCount) {
+    return `
+      <section class="learning-analysis is-empty" aria-label="선택 데이터 분석">
+        <div class="section-title">
+          <span>선택 데이터 분석</span>
+          <strong>분석 대기</strong>
+        </div>
+        <p>에피소드에서 선택과 판단 이유를 기록하면 학습 패턴을 분석합니다.</p>
+      </section>
+    `;
+  }
+
+  const responseTime = analysis.averageResponseSeconds === null
+    ? "-"
+    : `${analysis.averageResponseSeconds}초`;
+  const reasonRows = options.detailed
+    ? analysis.reasonDistribution
+        .slice(0, 3)
+        .map(
+          (reason) => `
+            <li>
+              <span>${escapeHtml(reason.label)}</span>
+              <strong>${reason.count}회</strong>
+            </li>
+          `,
+        )
+        .join("")
+    : "";
+
+  return `
+    <section class="learning-analysis" aria-label="선택 데이터 분석">
+      <div class="section-title">
+        <span>선택 데이터 분석</span>
+        <strong>${escapeHtml(analysis.profile.name)}</strong>
+      </div>
+      <p class="analysis-description">${escapeHtml(analysis.profile.description)}</p>
+      <div class="analysis-kpis">
+        <article><span>분석 선택</span><strong>${analysis.decisionCount}개</strong></article>
+        <article><span>적극 실천</span><strong>${percentLabel(analysis.proactiveRate)}</strong></article>
+        <article><span>위험 선택</span><strong>${percentLabel(analysis.riskRate)}</strong></article>
+        <article><span>평균 고민 시간</span><strong>${responseTime}</strong></article>
+      </div>
+      <p class="analysis-reason"><span>가장 많이 기록한 판단 기준</span><strong>${escapeHtml(analysis.dominantReason?.label || "아직 기록 없음")}</strong></p>
+      ${reasonRows ? `<ul class="reason-distribution">${reasonRows}</ul>` : ""}
+      <p class="analysis-note">데이터 충분도 ${escapeHtml(analysis.confidence)} · ${analysis.attemptCount}회차 기록 · 교육용 규칙 기반 분석이며 심리검사가 아닙니다.</p>
+    </section>
+  `;
+}
+
+function guidelinePerformanceLevel(score) {
+  return ScoringEngine.performanceBand(score);
+}
+
+function guidelineDiagnosis() {
+  const items = guidelineScoreItems().filter((item) => item.score !== null);
+  if (!items.length) {
+    return null;
+  }
+
+  const weakest = items.slice().sort((a, b) => a.score - b.score)[0];
+  const recommendedEpisodeIds = {
+    humanCenteredness: "chatbot",
+    privacy: "privacy",
+    fairness: "privacy",
+    responsibility: "deepfake",
+    safety: "rumor",
+    reliability: "rumor",
+    transparency: "rumor",
+  };
+  const recommendedEpisode = episodes.find(
+    (episode) => episode.id === recommendedEpisodeIds[weakest.key],
+  );
+  const isCurrentEpisode = recommendedEpisode?.id === activeEpisode().id;
+
+  return {
+    weakest,
+    level: guidelinePerformanceLevel(weakest.score),
+    recommendation: isCurrentEpisode
+      ? `「${activeEpisode().title}」을 다른 선택으로 다시 진행해보세요.`
+      : `다음 학습으로 「${recommendedEpisode?.title || activeEpisode().title}」을 추천합니다.`,
+  };
+}
+
+function resultSnapshotHtml() {
+  const items = guidelineScoreItems().filter((item) => item.score !== null);
+  const sortedItems = items.slice().sort((a, b) => b.score - a.score);
+  const strongest = sortedItems[0];
+  const weakest = sortedItems[sortedItems.length - 1];
+  const analysis = currentLearningAnalysis();
+
+  if (!strongest || !weakest) return "";
+
+  return `
+    <section class="result-snapshot" aria-labelledby="resultSnapshotTitle">
+      <div class="result-snapshot-heading">
+        <span>한눈에 보기</span>
+        <strong id="resultSnapshotTitle">${escapeHtml(analysis.profile.name)}</strong>
+      </div>
+      <div class="snapshot-metrics">
+        <article>
+          <span>강점 원칙</span>
+          <strong>${escapeHtml(strongest.name)}</strong>
+          <b>${strongest.score}점</b>
+        </article>
+        <article>
+          <span>보완 원칙</span>
+          <strong>${escapeHtml(weakest.name)}</strong>
+          <b>${weakest.score}점</b>
+        </article>
+        <article>
+          <span>적극 실천 선택</span>
+          <strong>${percentLabel(analysis.proactiveRate)}</strong>
+          <b>${analysis.decisionCount}개 선택 분석</b>
+        </article>
+      </div>
+      <p>${escapeHtml(analysis.profile.description)}</p>
+    </section>
+  `;
+}
+
+function aiCoachHtml() {
+  return `
+    <section class="ai-coach" aria-labelledby="aiCoachTitle">
+      <div class="ai-coach-heading">
+        <div>
+          <span>선택형 기능</span>
+          <h4 id="aiCoachTitle">AI에게 내 결과 설명 듣기</h4>
+        </div>
+        <p>점수와 선택 기록을 바탕으로 어려운 부분을 풀어 설명하고, 관련 학습 영상을 찾아줍니다.</p>
+      </div>
+      <form class="ai-coach-form" id="aiCoachForm">
+        <label for="aiQuestionInput">궁금한 점 <small>선택 입력</small></label>
+        <div class="ai-coach-input-row">
+          <input
+            id="aiQuestionInput"
+            type="text"
+            maxlength="240"
+            placeholder="예: 왜 투명성 점수가 낮게 나왔나요?"
+          />
+          <button id="aiExplainButton" type="submit">AI 설명 받기</button>
+        </div>
+      </form>
+      <p class="ai-data-note">이름과 아이디는 전송하지 않습니다. 생성된 설명은 교육 보조 자료이며 공식 평가나 법률 판단이 아닙니다.</p>
+      <div class="ai-coach-output" id="aiCoachOutput" aria-live="polite" hidden></div>
+    </section>
+  `;
+}
+
+function buildAiExplanationPayload(question) {
+  const episode = activeEpisode();
+  const analysis = currentLearningAnalysis();
+  const response = activeAssessmentResponse();
+  const reflectionDelta = Number.isFinite(response.pre?.level) && Number.isFinite(response.post?.level)
+    ? response.post.level - response.pre.level
+    : null;
+
+  return {
+    question,
+    episode: {
+      title: episode.title,
+      topic: episode.topic,
+      concept: episode.assessment.concept,
+    },
+    score: scoreAverage(),
+    ending: endingName(),
+    principles: guidelineScoreItems()
+      .filter((item) => item.score !== null)
+      .map((item) => ({
+        name: item.name,
+        score: item.score,
+        description: item.description,
+      })),
+    analysis: {
+      profile: analysis.profile.name,
+      profileDescription: analysis.profile.description,
+      proactiveRate: Math.round(analysis.proactiveRate * 100),
+      riskRate: Math.round(analysis.riskRate * 100),
+      dominantReason: analysis.dominantReason?.label || "",
+      reflectionDelta,
+    },
+    choices: state.history.map((item) => ({
+      scene: item.scene,
+      choice: item.choice,
+      level: item.rubric?.levelLabel || "",
+      reason: item.reasonLabel || "",
+    })),
+  };
+}
+
+function appendTextElement(parent, tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  element.textContent = text;
+  parent.appendChild(element);
+  return element;
+}
+
+function appendExplanationList(parent, title, items) {
+  const section = document.createElement("section");
+  appendTextElement(section, "h5", "", title);
+  const list = document.createElement("ul");
+  items.forEach((item) => appendTextElement(list, "li", "", item));
+  section.appendChild(list);
+  parent.appendChild(section);
+}
+
+function renderAiExplanation(data) {
+  const output = document.getElementById("aiCoachOutput");
+  if (!output) return;
+
+  output.replaceChildren();
+  output.hidden = false;
+  output.classList.remove("is-error");
+  appendTextElement(output, "strong", "ai-explanation-summary", data.explanation.summary);
+  appendTextElement(output, "p", "ai-explanation-answer", data.explanation.answer);
+  appendExplanationList(output, "점수가 나온 이유", data.explanation.scoreReasons || []);
+  appendExplanationList(output, "다음에 해볼 행동", data.explanation.nextActions || []);
+
+  const videoSection = document.createElement("section");
+  videoSection.className = "ai-video-section";
+  appendTextElement(videoSection, "h5", "", "관련 학습 영상");
+  if (data.videos?.length) {
+    const grid = document.createElement("div");
+    grid.className = "ai-video-grid";
+    data.videos.forEach((video) => {
+      const link = document.createElement("a");
+      link.href = video.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      if (video.thumbnail) {
+        const image = document.createElement("img");
+        image.src = video.thumbnail;
+        image.alt = "";
+        image.loading = "lazy";
+        link.appendChild(image);
+      }
+      const copy = document.createElement("span");
+      appendTextElement(copy, "strong", "", video.title);
+      appendTextElement(copy, "small", "", video.channel);
+      link.appendChild(copy);
+      grid.appendChild(link);
+    });
+    videoSection.appendChild(grid);
+  } else {
+    const searchLink = document.createElement("a");
+    searchLink.className = "ai-video-search";
+    searchLink.href = data.videoSearchUrl;
+    searchLink.target = "_blank";
+    searchLink.rel = "noopener noreferrer";
+    searchLink.textContent = "YouTube에서 관련 영상 검색하기";
+    videoSection.appendChild(searchLink);
+  }
+  output.appendChild(videoSection);
+}
+
+function showAiCoachError(message) {
+  const output = document.getElementById("aiCoachOutput");
+  if (!output) return;
+  output.replaceChildren();
+  output.hidden = false;
+  output.classList.add("is-error");
+  appendTextElement(output, "strong", "", "설명을 불러오지 못했습니다.");
+  appendTextElement(output, "p", "", message);
+}
+
+async function requestAiExplanation(event) {
+  event.preventDefault();
+  const button = document.getElementById("aiExplainButton");
+  const input = document.getElementById("aiQuestionInput");
+  const output = document.getElementById("aiCoachOutput");
+  if (!button || !input || !output) return;
+
+  if (window.location.protocol === "file:") {
+    showAiCoachError("AI 설명은 배포된 사이트에서 이용할 수 있습니다. 로컬 파일 화면에서는 서버 API가 실행되지 않습니다.");
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "분석 중...";
+  output.hidden = false;
+  output.classList.remove("is-error");
+  output.setAttribute("aria-busy", "true");
+  output.textContent = "선택 기록과 정책 기준을 함께 살펴보고 있습니다.";
+
+  try {
+    if (!supabaseClient) {
+      throw new Error("Supabase 연결 설정을 확인해주세요.");
+    }
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error || !data.session?.access_token) {
+      throw new Error("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+    }
+
+    const response = await fetch("/api/explain-result", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${data.session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildAiExplanationPayload(input.value.trim())),
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (responseData.code === "SERVER_NOT_CONFIGURED") {
+        throw new Error("배포 서버의 OpenAI 또는 Supabase 환경변수 설정이 필요합니다.");
+      }
+      throw new Error(responseData.message || "AI 설명 서버에 연결하지 못했습니다.");
+    }
+    renderAiExplanation(responseData);
+  } catch (error) {
+    showAiCoachError(error.message || "잠시 후 다시 시도해주세요.");
+  } finally {
+    output.removeAttribute("aria-busy");
+    button.disabled = false;
+    button.textContent = "AI 설명 받기";
+  }
+}
+
+function bindReportActions() {
+  document.getElementById("aiCoachForm")?.addEventListener("submit", requestAiExplanation);
+}
+
 function reportHtml(episode, response) {
+  const diagnosis = guidelineDiagnosis();
   return `
     <div class="report-summary">
       <article>
-        <span>최종 점수</span>
+        <span>윤리원칙 실천점수</span>
         <strong>${scoreAverage()}점</strong>
       </article>
       <article>
         <span>엔딩</span>
-        <strong>${endingName()}</strong>
+        <strong class="ending-label ${endingClassName()}">${endingName()}</strong>
       </article>
       <article>
         <span>학습 개념</span>
         <strong>${escapeHtml(episode.assessment.concept)}</strong>
       </article>
     </div>
-    ${scoreBreakdownHtml()}
-    <div class="insight-list">
-      <article>
-        <span>생각 변화</span>
-        <p>${assessmentChangeHtml(response)}</p>
-      </article>
-      <article>
-        <span>기억할 원칙</span>
-        <p>${escapeHtml(episode.assessment.principle)}</p>
-      </article>
-      <article>
-        <span>현실 행동</span>
-        <p>${escapeHtml(episode.assessment.action)}</p>
-      </article>
-    </div>
+    ${resultSnapshotHtml()}
+    ${aiCoachHtml()}
+    <details class="result-analysis">
+      <summary>
+        <span>점수 분석 보기</span>
+        <strong>왜 이 점수가 나왔나요?</strong>
+      </summary>
+      <div class="result-analysis-content">
+        ${scoreBreakdownHtml()}
+        ${learnerAnalysisHtml(currentLearningAnalysis())}
+        <div class="insight-list">
+          ${
+            diagnosis
+              ? `<article>
+                  <span>원칙별 진단</span>
+                  <p><strong>${escapeHtml(diagnosis.weakest.name)} ${diagnosis.weakest.score}점</strong> · ${escapeHtml(diagnosis.level)}</p>
+                  <p>${escapeHtml(diagnosis.weakest.description)}</p>
+                </article>
+                <article>
+                  <span>맞춤 학습 추천</span>
+                  <p>${escapeHtml(diagnosis.recommendation)}</p>
+                </article>`
+              : ""
+          }
+          <article>
+            <span>생각 변화</span>
+            <p>${assessmentChangeHtml(response)}</p>
+          </article>
+          <article>
+            <span>기억할 원칙</span>
+            <p>${escapeHtml(episode.assessment.principle)}</p>
+          </article>
+          <article>
+            <span>현실 행동</span>
+            <p>${escapeHtml(episode.assessment.action)}</p>
+          </article>
+        </div>
+      </div>
+    </details>
   `;
 }
 
-function formatDelta(value) {
-  if (value > 0) {
-    return `+${value}`;
-  }
-  return String(value);
-}
-
 function scoreBreakdownHtml() {
-  const inverseMeters = new Set(["확산", "의존"]);
-  const items = activeEpisode().meters.map((name) => {
-    const value = state.scores[name] ?? 50;
-    const delta = value - 50;
-    const reflectedValue = inverseMeters.has(name) ? 100 - value : value;
-    return { name, value, delta, reflectedValue, isInverse: inverseMeters.has(name) };
-  });
-  const formula = items.map((item) => item.reflectedValue).join(" + ");
-  const inverseNote = items
-    .filter((item) => item.isInverse)
-    .map((item) => `${item.name} ${item.value}점은 낮을수록 좋아서 ${item.reflectedValue}점으로 반영`)
-    .join(" · ");
+  const items = guidelineScoreItems().filter((item) => item.score !== null);
+  const formula = items.map((item) => item.score).join(" + ");
 
   return `
     <section class="score-breakdown" aria-label="점수 계산 방식">
       <div class="section-title">
-        <span>점수 계산</span>
-        <strong>선택에 따른 변화</strong>
+        <span>국가 AI 윤리원칙 기반 분석</span>
+        <strong>7대 원칙 중 에피소드 관련 영역</strong>
       </div>
       <div class="score-delta-list">
         ${items
           .map(
-            (item) => `
+            (item) => {
+              const decisions = state.history
+                .filter((historyItem) => Number.isFinite(historyItem.rubric?.ratings?.[item.key]))
+                .map((historyItem) => ({
+                  choice: historyItem.choice,
+                  level: historyItem.rubric.ratings[item.key],
+                }))
+                .sort((a, b) => a.level - b.level);
+              const weakest = decisions[0];
+              const strongest = decisions[decisions.length - 1];
+
+              return `
               <article>
                 <span>${escapeHtml(item.name)}</span>
-                <strong class="${item.delta >= 0 ? "is-plus" : "is-minus"}">${formatDelta(item.delta)}</strong>
-                <p>기본 50 → 최종 ${item.value}</p>
+                <strong class="${item.score >= 60 ? "is-plus" : "is-minus"}">${item.score}점</strong>
+                <p>${item.count}개 선택 평가 · ${item.earned}/${item.possible}단계</p>
+                <p class="principle-description">${escapeHtml(item.description)}</p>
+                ${
+                  strongest
+                    ? `<p><b>높게 반영</b> ${escapeHtml(strongest.choice)} · ${strongest.level}/4</p>`
+                    : ""
+                }
+                ${
+                  weakest && weakest !== strongest
+                    ? `<p><b>점검할 선택</b> ${escapeHtml(weakest.choice)} · ${weakest.level}/4</p>`
+                    : ""
+                }
+                <p>정책 근거 ${escapeHtml(item.evidence.join(", "))}</p>
+                ${
+                  item.legalReferences.length
+                    ? `<p>법률 참고 ${escapeHtml(item.legalReferences.join(", "))}</p>`
+                    : ""
+                }
               </article>
-            `,
+            `;
+            },
           )
           .join("")}
       </div>
-      <p class="score-formula">(${formula}) ÷ ${items.length} = ${scoreAverage()}점</p>
-      ${inverseNote ? `<p class="score-note">${escapeHtml(inverseNote)}</p>` : ""}
+      <p class="score-formula">원칙별 수행률 평균: (${formula}) ÷ ${items.length} = ${scoreAverage()}점</p>
+      <p class="score-note">선택마다 관련 조항을 0 위반 · 1 위험 · 2 부분 충족 · 3 준수 · 4 적극 실천으로 평가합니다.</p>
+      <p class="score-note">이 점수는 정부가 정한 공식 등급이나 법률 위반 판정이 아니라, 정책 원칙을 학습용 행동 기준으로 바꾼 진단 결과입니다.</p>
+      <p class="score-note">3대 가치: ${escapeHtml(NATIONAL_VALUES.join(" · "))}</p>
+      <p class="score-note">주 기준: ${escapeHtml(ETHICS_SOURCES.primary.publisher)} 「${escapeHtml(ETHICS_SOURCES.primary.title)}」 (${escapeHtml(ETHICS_SOURCES.primary.publishedAt)})</p>
+      <p class="score-note">교차 검토: 「${escapeHtml(ETHICS_SOURCES.law.title)}」 및 「${escapeHtml(ETHICS_SOURCES.education.title)}」</p>
+      <p class="score-note">상황화 참고: ${escapeHtml(activeEpisode().practiceReference)}</p>
+      <p class="score-note"><a href="${escapeAttribute(ETHICS_SOURCES.practice.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ETHICS_SOURCES.practice.publisher)} 인공지능 윤리 소통채널</a></p>
     </section>
   `;
 }
@@ -1453,11 +2191,14 @@ function overallDiagnosis(completedCount, averageScore) {
   if (completedCount < episodes.length) {
     return "일부 주제 학습이 진행 중입니다. 남은 에피소드를 완료하면 진단이 더 정확해집니다.";
   }
-  if (averageScore >= 72) {
+  if (averageScore >= 75) {
     return "AI를 사용할 때 권리, 검증, 책임을 함께 고려하는 균형형 학습자입니다.";
   }
-  if (averageScore >= 55) {
+  if (averageScore >= 50) {
     return "기본 윤리 감각은 좋지만 상황별 판단 기준을 더 연습하면 좋습니다.";
+  }
+  if (averageScore >= 25) {
+    return "공식 원칙을 일부 이해했지만 실제 상황에서 적용하는 연습이 더 필요합니다.";
   }
   return "편리함과 분위기에 흔들리는 선택이 많았습니다. 동의, 출처, 개인정보 기준을 다시 점검해보세요.";
 }
@@ -1491,14 +2232,16 @@ async function loadEpisodeProgress(index) {
     return false;
   }
 
+  if (data.scores?._version !== SCORING_VERSION) {
+    state.feedback = "국가 AI 윤리원칙 기반 평가가 적용되어 이 에피소드는 새로 진단합니다.";
+    return false;
+  }
+
   if (data.scene_id && episode.scenes[data.scene_id]) {
     state.sceneId = data.scene_id;
   }
-  state.scores = {
-    ...Object.fromEntries(episode.meters.map((meter) => [meter, 50])),
-    ...(data.scores || {}),
-  };
   state.history = Array.isArray(data.history) ? data.history : [];
+  refreshGuidelineScores();
   state.feedback = data.feedback || "";
   state.storyMode = data.story_mode || "story";
   state.assessments[episode.id] = data.assessment || {};
@@ -1516,7 +2259,7 @@ async function loadAllProgress() {
   try {
     ({ data, error } = await supabaseClient
       .from("user_episode_progress")
-      .select("episode_id, score, completed, ending, updated_at")
+        .select("episode_id, score, scores, history, assessment, completed, ending, updated_at")
       .eq("user_id", currentUser.id));
   } catch (requestError) {
     state.feedback = supabaseConnectionMessage(requestError);
@@ -1528,7 +2271,11 @@ async function loadAllProgress() {
     return;
   }
 
-  state.progress = Object.fromEntries((data || []).map((item) => [item.episode_id, item]));
+  state.progress = Object.fromEntries(
+    (data || [])
+      .filter((item) => item.scores?._version === SCORING_VERSION)
+      .map((item) => [item.episode_id, item]),
+  );
 }
 
 async function saveEpisodeProgress() {
@@ -1569,6 +2316,9 @@ async function saveEpisodeProgress() {
   state.progress[activeEpisode().id] = {
     episode_id: activeEpisode().id,
     score: scoreAverage(),
+    scores: state.scores,
+    history: state.history,
+    assessment: state.assessments[activeEpisode().id] || {},
     completed: Boolean(scene.end),
     ending: scene.end ? endingName() : null,
     updated_at: new Date().toISOString(),
@@ -1576,56 +2326,105 @@ async function saveEpisodeProgress() {
 }
 
 async function startEpisode(index, options = {}) {
+  const episodeId = episodes[index].id;
+  const previousAssessment = state.assessments[episodeId] || state.progress[episodeId]?.assessment || {};
   state.episodeIndex = index;
   state.sceneId = episodes[index].start;
   state.history = [];
   state.feedback = "";
   state.view = "story";
   state.storyMode = "pre";
+  state.pendingDecision = null;
+  state.sceneStartedAt = null;
   if (options.loadSaved === false) {
-    state.assessments[episodes[index].id] = {};
+    state.assessments[episodeId] = {
+      attemptCount: Number(previousAssessment.attemptCount || 0) + 1,
+    };
   }
   resetScores(episodes[index]);
   if (options.loadSaved !== false) {
-    await loadEpisodeProgress(index);
+    const loaded = await loadEpisodeProgress(index);
+    if (!loaded) {
+      state.assessments[episodeId] = {
+        attemptCount: Math.max(1, Number(previousAssessment.attemptCount || 0)),
+      };
+    }
   }
   if (options.saveReset) {
     await saveEpisodeProgress();
   }
+  state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
   syncNav();
   render();
 }
 
-async function applyChoice(choice) {
-  Object.entries(choice.delta || {}).forEach(([key, value]) => {
-    state.scores[key] = clamp((state.scores[key] ?? 50) + value);
-  });
-  state.history.push({
+function queueChoice(choice, choiceIndex) {
+  const sceneId = state.sceneId;
+  const rubric = activeGuidelineRubric(sceneId, choiceIndex);
+  state.pendingDecision = {
+    sceneId,
+    choiceIndex,
     scene: activeScene().title,
     choice: choice.label,
     feedback: choice.feedback,
+    rubric,
+    next: choice.next,
+    responseTimeMs: state.sceneStartedAt ? Date.now() - state.sceneStartedAt : null,
+  };
+  state.storyMode = "reason";
+  state.feedback = "";
+  state.sceneStartedAt = null;
+  render();
+}
+
+async function applyDecisionReason(reason) {
+  if (!state.pendingDecision) return;
+
+  const decision = state.pendingDecision;
+  state.history.push({
+    sceneId: decision.sceneId,
+    choiceIndex: decision.choiceIndex,
+    scene: decision.scene,
+    choice: decision.choice,
+    feedback: decision.feedback,
+    rubric: decision.rubric,
+    reasonCode: reason.code,
+    reasonLabel: reason.label,
+    responseTimeMs: decision.responseTimeMs,
+    answeredAt: new Date().toISOString(),
   });
-  state.feedback = choice.feedback;
-  state.sceneId = choice.next;
+  refreshGuidelineScores();
+  state.feedback = decision.feedback;
+  state.sceneId = decision.next;
+  state.pendingDecision = null;
   state.view = "story";
   state.storyMode = activeScene().end ? "post" : "story";
+  state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
   await saveEpisodeProgress();
   render();
 }
 
 function scoreAverage() {
-  const values = Object.entries(state.scores).map(([key, value]) =>
-    key === "확산" || key === "의존" ? 100 - value : value,
-  );
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  const values = activeEpisode()
+    .meters.map((key) => state.scores[key])
+    .filter((value) => Number.isFinite(value));
+  return ScoringEngine.average(values);
 }
 
 function endingName() {
   const avg = scoreAverage();
-  if (avg >= 72) return "True End";
-  if (avg >= 55) return "Good End";
-  if (avg >= 40) return "Normal End";
-  return "Bad End";
+  if (!state.history.length) return "진단 전";
+  if (avg >= 75) return "Good End · 책임 있는 실천";
+  if (avg >= 50) return "Normal End · 기준을 배우는 중";
+  return "Bad End · 다시 점검 필요";
+}
+
+function endingClassName() {
+  const avg = scoreAverage();
+  if (!state.history.length) return "is-pending";
+  if (avg >= 75) return "is-good";
+  if (avg >= 50) return "is-normal";
+  return "is-bad";
 }
 
 function renderTabs() {
@@ -1635,12 +2434,14 @@ function renderTabs() {
 
 function renderMeters() {
   els.meterGroup.innerHTML = "";
-  Object.entries(state.scores).forEach(([name, value]) => {
+  activeEpisode().meters.forEach((key) => {
+    const principle = GUIDELINE_PRINCIPLES[key];
+    const value = state.scores[key];
     const meter = document.createElement("div");
     meter.className = "meter";
     meter.innerHTML = `
-      <div class="meter-head"><span>${name}</span><span>${value}</span></div>
-      <div class="meter-track"><div class="meter-fill" style="--value:${value}%"></div></div>
+      <div class="meter-head"><span>${escapeHtml(principle.shortName)}</span><span>${value ?? "미평가"}</span></div>
+      <div class="meter-track"><div class="meter-fill" style="--value:${value ?? 0}%"></div></div>
     `;
     els.meterGroup.appendChild(meter);
   });
@@ -1662,12 +2463,26 @@ function answerKeywordHtml(option) {
 }
 
 function renderAssessmentOptions(type) {
-  activeEpisode().assessment.options.forEach((option, index) => {
+  const options = type === "pre"
+    ? activeEpisode().assessment.preOptions
+    : activeEpisode().assessment.postOptions;
+  options.forEach((option, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `choice-button assessment-answer${index === 1 ? " is-primary" : ""}`;
-    button.innerHTML = `<strong>${type === "pre" ? "사전" : "사후"} ${index + 1}</strong><span>${answerKeywordHtml(option)}</span>`;
-    button.addEventListener("click", () => answerAssessment(type, option));
+    button.className = "choice-button assessment-answer";
+    button.innerHTML = `<strong>${type === "pre" ? "사전" : "사후"} ${index + 1}</strong><span>${answerKeywordHtml(option.text)}</span>`;
+    button.addEventListener("click", () => answerAssessment(type, option, index));
+    els.choices.appendChild(button);
+  });
+}
+
+function renderDecisionReasons() {
+  DECISION_REASONS.forEach((reason, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-button reason-choice";
+    button.innerHTML = `<strong>판단 근거 ${index + 1}</strong><span>${escapeHtml(reason.label)}</span>`;
+    button.addEventListener("click", () => applyDecisionReason(reason));
     els.choices.appendChild(button);
   });
 }
@@ -1687,7 +2502,7 @@ function renderEpisodeList() {
         <span>${episodeProgressLabel(episode)}</span>
       </span>
     `;
-    button.addEventListener("click", () => startEpisode(index, { loadSaved: false }));
+    button.addEventListener("click", () => startEpisode(index));
     list.appendChild(button);
   });
   els.choices.appendChild(list);
@@ -1708,6 +2523,11 @@ function renderChoices(scene) {
 
   if (state.view === "story" && state.storyMode === "post") {
     renderAssessmentOptions("post");
+    return;
+  }
+
+  if (state.view === "story" && state.storyMode === "reason") {
+    renderDecisionReasons();
     return;
   }
 
@@ -1805,9 +2625,9 @@ function renderChoices(scene) {
   scene.choices.forEach((choice, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `choice-button${index === 0 ? " is-primary" : ""}`;
+    button.className = "choice-button";
     button.innerHTML = `<strong>${index + 1}</strong><span>${escapeHtml(choice.label)}</span>`;
-    button.addEventListener("click", () => applyChoice(choice));
+    button.addEventListener("click", () => queueChoice(choice, index));
     els.choices.appendChild(button);
   });
 }
@@ -1832,6 +2652,18 @@ function recordHtml() {
               <div>
                 <strong>${escapeHtml(item.choice)}</strong>
                 <p>${escapeHtml(item.scene)}</p>
+                ${
+                  item.rubric
+                    ? `<small>${escapeHtml(item.rubric.levelLabel)} · ${item.rubric.principles
+                        .map(
+                          (key) =>
+                            `${escapeHtml(GUIDELINE_PRINCIPLES[key].name)} ${item.rubric.ratings[key]}/4`,
+                        )
+                        .join(" · ")}</small>`
+                    : ""
+                 }
+                ${item.reasonLabel ? `<small>판단 이유 · ${escapeHtml(item.reasonLabel)}</small>` : ""}
+                ${Number.isFinite(item.responseTimeMs) ? `<small>응답 시간 · ${Math.round(item.responseTimeMs / 100) / 10}초</small>` : ""}
               </div>
             </article>
           `,
@@ -1842,7 +2674,11 @@ function recordHtml() {
 }
 
 function learningHtml(id) {
+  const principleNames = activeEpisode().meters
+    .map((key) => GUIDELINE_PRINCIPLES[key].name)
+    .join(" · ");
   return `
+    <p class="guideline-source"><strong>적용 원칙</strong> ${escapeHtml(principleNames)}</p>
     <div class="insight-list">
       ${learningText(id)
         .split("\n")
@@ -1857,6 +2693,7 @@ function learningHtml(id) {
         )
         .join("")}
     </div>
+    <p class="guideline-source">출처: ${escapeHtml(ETHICS_SOURCES.primary.publisher)} 「${escapeHtml(ETHICS_SOURCES.primary.title)}」 (${escapeHtml(ETHICS_SOURCES.primary.publishedAt)})</p>
   `;
 }
 
@@ -1876,6 +2713,7 @@ function profileHtml(profile) {
         <strong>${escapeHtml(formatProfileDate(profile.created_at))}</strong>
       </article>
     </div>
+    ${learnerAnalysisHtml(overallLearningAnalysis(), { detailed: true })}
   `;
 }
 
@@ -1883,7 +2721,7 @@ function render() {
   const episode = activeEpisode();
   const scene = activeScene();
   renderTabs();
-  const isAssessment = state.view === "story" && ["pre", "post"].includes(state.storyMode);
+  const isAssessment = state.view === "story" && ["pre", "post", "reason"].includes(state.storyMode);
   const isReport = state.view === "story" && state.storyMode === "report";
   const isSupport = ["record", "learn", "profile"].includes(state.view);
   els.storyStage.classList.toggle("is-home-stage", state.view === "home");
@@ -1953,6 +2791,15 @@ function render() {
     els.feedbackBox.textContent = response.pre?.answer
       ? `사전 응답: ${response.pre.answer}`
       : "사후 생각을 기록하면 결과 리포트가 열립니다.";
+  } else if (state.view === "story" && state.storyMode === "reason") {
+    els.chapterLine.textContent = "Decision";
+    els.sceneTitle.textContent = "이 선택을 한 이유는 무엇인가요?";
+    els.sceneText.innerHTML = `
+      <p class="selected-decision"><span>방금 선택</span><strong>${escapeHtml(state.pendingDecision?.choice || "-")}</strong></p>
+      <p class="reason-prompt">판단할 때 가장 크게 작용한 기준 하나를 골라주세요.</p>
+    `;
+    els.quoteText.textContent = "정답을 다시 묻는 단계가 아니라 판단 과정을 분석하기 위한 질문입니다.";
+    els.feedbackBox.textContent = "";
   } else if (state.view === "story" && state.storyMode === "report") {
     const response = activeAssessmentResponse();
     els.chapterLine.textContent = "Report";
@@ -1972,6 +2819,7 @@ function render() {
   els.scoreLabel.innerHTML = scoreBadgeHtml();
   renderMeters();
   renderChoices(scene);
+  if (isReport) bindReportActions();
 }
 
 function syncNav() {
@@ -1992,7 +2840,7 @@ function learningText(id) {
     assignment:
       "생성형 AI는 아이디어 정리, 초안 점검, 표현 개선을 도울 수 있습니다.\n하지만 AI가 만든 결과물을 그대로 제출하면 학습 과정과 작성 책임이 사라질 수 있습니다.\nAI 사용 범위를 밝히고, 근거를 검증하고, 자신의 언어로 다시 설명할 수 있어야 합니다.",
     privacy:
-      "AI 추천은 사용자의 검색 기록, 클릭, 위치, 관심사 같은 데이터를 바탕으로 더 정확해집니다.\n편리함이 커질수록 어떤 데이터가 저장되고 어디에 쓰이는지 확인해야 합니다.\n필요한 권한만 허용하고, 개인화 설정과 데이터 삭제 방법을 주기적으로 점검하는 습관이 중요합니다.",
+      "AI 추천은 검색 기록, 위치, 관심사 같은 데이터를 활용하므로 필요한 권한만 제공해야 합니다.\n개인화된 결과도 성별, 지역, 사회적 배경에 따라 특정 집단을 배제하거나 차별하지 않는지 확인해야 합니다.\n저장된 데이터와 추천 기준을 확인하고 삭제·수정할 수 있어야 정보에 대한 통제권을 지킬 수 있습니다.",
   };
   return texts[id];
 }
