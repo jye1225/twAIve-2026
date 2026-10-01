@@ -2465,15 +2465,15 @@ function fallbackDecisionReasons(decision) {
   return [
     {
       code: "rights",
-      label: `“${shortChoice}”가 당사자의 권리와 피해를 가장 잘 고려한다고 생각했다`,
+      label: `“${shortChoice}”가 당사자한테 가장 덜 피해를 줄 것 같아서`,
     },
     {
       code: "convenience",
-      label: "지금 상황에서 가장 빠르고 실행하기 쉬운 방법이라고 생각했다",
+      label: "지금 바로 할 수 있고 가장 현실적인 방법 같아서",
     },
     {
       code: "social",
-      label: "주변 사람들의 반응과 관계를 고려하면 현실적인 선택이라고 생각했다",
+      label: "친구들이랑 관계도 생각하면서 문제를 풀 수 있을 것 같아서",
     },
   ];
 }

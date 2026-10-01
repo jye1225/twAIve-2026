@@ -20,6 +20,7 @@
   --shadow-surface: 0 8px 22px rgba(30, 87, 153, 0.1);
   --shadow-elevated: 0 16px 42px rgba(15, 34, 66, 0.14);
   --shadow: var(--shadow-surface);
+  --choice-copy-size: clamp(0.98rem, 1.2vw, 1.08rem);
 }
 
 @font-face {
@@ -1402,7 +1403,7 @@ blockquote.is-warning::before {
 
 .assessment-answer > span {
   display: block;
-  font-size: clamp(1.02rem, 1.4vw, 1.22rem);
+  font-size: var(--choice-copy-size);
   line-height: 1.55;
 }
 
@@ -1564,7 +1565,7 @@ blockquote {
 
 .choice-button > span {
   color: #172033;
-  font-size: clamp(1.02rem, 1.35vw, 1.18rem);
+  font-size: var(--choice-copy-size);
   font-weight: 800;
   line-height: 1.45;
 }
@@ -2434,7 +2435,7 @@ blockquote.is-warning {
 }
 
 .story-stage.is-scene-stage + .choice-dock .choice-button > span {
-  font-size: clamp(0.94rem, 1.15vw, 1.04rem);
+  font-size: var(--choice-copy-size);
 }
 
 .story-stage.is-assessment-stage {

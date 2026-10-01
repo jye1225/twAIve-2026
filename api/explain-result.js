@@ -17,6 +17,12 @@ function cleanText(value, maxLength = 300) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+function isCasualStudentReason(value) {
+  const label = cleanText(value, 100);
+  if (!label) return false;
+  return !/(니다|습니까|이에요|예요|해요|돼요|같아요|있어요|없어요|좋아요|보여요|싶어요|주세요|하세요)(?:[.!?]?|$)/.test(label);
+}
+
 function clampNumber(value, min = 0, max = 100) {
   const number = Number(value);
   if (!Number.isFinite(number)) return min;
@@ -276,11 +282,13 @@ async function requestOpenAiReasonOptions(payload) {
       reasoning: { effort: "low" },
       max_output_tokens: 400,
       instructions: [
-        "당신은 대학생 AI 윤리 선택형 학습 서비스의 문항 설계자입니다.",
-        "사용자가 방금 고른 행동을 선택한 이유로 자연스러운 한국어 문장 세 개를 만드세요.",
+        "당신은 10대 학생 대상 AI 윤리 선택형 학습 서비스의 문항 설계자입니다.",
+        "사용자가 방금 고른 행동에 대해 ‘왜 이 선택을 했어?’라고 물었을 때 직접 답하는 자연스러운 한국어 이유 세 개를 만드세요.",
         "세 이유는 서로 다른 관점이어야 하며 정답을 암시하거나 사용자를 평가하지 마세요.",
         "권리·검증·후속 행동·편의·관계·불확실 중 장면에 가장 적합한 서로 다른 코드 세 개를 사용하세요.",
-        "각 문장은 사용자가 직접 말하는 것처럼 작성하고 70자 이내로 제한하세요.",
+        "10대 학생이 실제 친구에게 말하듯 쉽고 자연스러운 반말만 사용하세요.",
+        "각 이유는 ‘~해서’, ‘~같아서’, ‘~걱정돼서’, ‘~하고 싶어서’처럼 짧게 끝내고, 존댓말과 문어체, ‘~라고 생각했다’의 반복은 사용하지 마세요.",
+        "각 문장은 70자 이내로 제한하세요.",
         "입력에 없는 사실, 법률 위반 여부, 점수는 만들어내지 마세요.",
       ].join(" "),
       input: JSON.stringify(payload),
@@ -314,7 +322,7 @@ async function requestOpenAiReasonOptions(payload) {
         code: cleanText(reason.code, 30),
         label: cleanText(reason.label, 100),
       }))
-      .filter((reason) => REASON_CODES.includes(reason.code) && reason.label && !seenCodes.has(reason.code) && seenCodes.add(reason.code))
+      .filter((reason) => REASON_CODES.includes(reason.code) && isCasualStudentReason(reason.label) && !seenCodes.has(reason.code) && seenCodes.add(reason.code))
       .slice(0, 3);
     if (reasons.length !== 3) {
       throw new Error("invalid reason count");
@@ -431,6 +439,7 @@ module.exports.__test = {
   decodeHtmlEntities,
   explanationSchema,
   extractOutputText,
+  isCasualStudentReason,
   normalizePayload,
   normalizeReasonPayload,
   parseRequestBody,

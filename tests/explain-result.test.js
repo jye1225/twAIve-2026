@@ -99,5 +99,8 @@ assert.deepEqual(reasonSchema.properties.reasons.items.properties.code.enum, [
   "social",
   "uncertain",
 ]);
+assert.equal(__test.isCasualStudentReason("당사자가 불편할 것 같아서"), true);
+assert.equal(__test.isCasualStudentReason("당사자를 먼저 배려해야 한다고 생각합니다."), false);
+assert.equal(__test.isCasualStudentReason("친구들과 같이 해결하면 좋을 것 같아요"), false);
 
 console.log("PASS: AI result/reason payload validation, limits, schemas, entity decoding, and response parsing");
