@@ -2,6 +2,7 @@ const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_QUESTION_LENGTH = 240;
 const MAX_CHOICES = 12;
+const REASON_CODES = ["rights", "verification", "action", "convenience", "social", "uncertain"];
 const videoCache = new Map();
 
 class ApiError extends Error {
@@ -22,7 +23,7 @@ function clampNumber(value, min = 0, max = 100) {
   return Math.min(max, Math.max(min, number));
 }
 
-function normalizePayload(body) {
+function parseRequestBody(body) {
   let payload = body;
   if (typeof body === "string") {
     try {
@@ -34,6 +35,11 @@ function normalizePayload(body) {
   if (!payload || typeof payload !== "object") {
     throw new ApiError(400, "INVALID_REQUEST", "분석할 결과 데이터가 없습니다.");
   }
+  return payload;
+}
+
+function normalizePayload(body) {
+  const payload = parseRequestBody(body);
 
   const principles = Array.isArray(payload.principles)
     ? payload.principles.slice(0, 7).map((item) => ({
@@ -88,6 +94,29 @@ function normalizePayload(body) {
   };
 }
 
+function normalizeReasonPayload(body) {
+  const payload = parseRequestBody(body);
+  const normalized = {
+    task: "reason_options",
+    episode: {
+      title: cleanText(payload.episode?.title, 100),
+      topic: cleanText(payload.episode?.topic, 100),
+      concept: cleanText(payload.episode?.concept, 140),
+    },
+    scene: {
+      title: cleanText(payload.scene?.title, 100),
+      text: cleanText(payload.scene?.text, 500),
+    },
+    choice: cleanText(payload.choice, 180),
+    allowedReasonCodes: REASON_CODES,
+  };
+
+  if (!normalized.episode.title || !normalized.scene.title || !normalized.choice) {
+    throw new ApiError(400, "INVALID_REQUEST", "에피소드, 장면과 선택 정보가 필요합니다.");
+  }
+  return normalized;
+}
+
 async function verifySupabaseUser(req) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -135,6 +164,30 @@ function explanationSchema() {
       videoSearchQuery: { type: "string" },
     },
     required: ["summary", "answer", "scoreReasons", "nextActions", "videoSearchQuery"],
+    additionalProperties: false,
+  };
+}
+
+function reasonOptionsSchema() {
+  return {
+    type: "object",
+    properties: {
+      reasons: {
+        type: "array",
+        minItems: 3,
+        maxItems: 3,
+        items: {
+          type: "object",
+          properties: {
+            code: { type: "string", enum: REASON_CODES },
+            label: { type: "string" },
+          },
+          required: ["code", "label"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["reasons"],
     additionalProperties: false,
   };
 }
@@ -206,6 +259,72 @@ async function requestOpenAiExplanation(payload) {
   }
 }
 
+async function requestOpenAiReasonOptions(payload) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new ApiError(503, "SERVER_NOT_CONFIGURED", "OpenAI API 키가 설정되지 않았습니다.");
+  }
+
+  const response = await fetch(OPENAI_RESPONSES_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-6-luna",
+      store: false,
+      reasoning: { effort: "low" },
+      max_output_tokens: 400,
+      instructions: [
+        "당신은 대학생 AI 윤리 선택형 학습 서비스의 문항 설계자입니다.",
+        "사용자가 방금 고른 행동을 선택한 이유로 자연스러운 한국어 문장 세 개를 만드세요.",
+        "세 이유는 서로 다른 관점이어야 하며 정답을 암시하거나 사용자를 평가하지 마세요.",
+        "권리·검증·후속 행동·편의·관계·불확실 중 장면에 가장 적합한 서로 다른 코드 세 개를 사용하세요.",
+        "각 문장은 사용자가 직접 말하는 것처럼 작성하고 70자 이내로 제한하세요.",
+        "입력에 없는 사실, 법률 위반 여부, 점수는 만들어내지 마세요.",
+      ].join(" "),
+      input: JSON.stringify(payload),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "twaive_decision_reasons",
+          strict: true,
+          schema: reasonOptionsSchema(),
+        },
+      },
+    }),
+  });
+
+  const responseData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error("OpenAI reason options error", response.status, responseData.error?.code || "unknown");
+    throw new ApiError(502, "OPENAI_ERROR", "AI 이유 추천에 실패했습니다.");
+  }
+
+  const outputText = extractOutputText(responseData);
+  if (!outputText) {
+    throw new ApiError(502, "OPENAI_ERROR", "OpenAI 응답에서 추천 이유를 찾지 못했습니다.");
+  }
+
+  try {
+    const parsed = JSON.parse(outputText);
+    const seenCodes = new Set();
+    const reasons = (parsed.reasons || [])
+      .map((reason) => ({
+        code: cleanText(reason.code, 30),
+        label: cleanText(reason.label, 100),
+      }))
+      .filter((reason) => REASON_CODES.includes(reason.code) && reason.label && !seenCodes.has(reason.code) && seenCodes.add(reason.code))
+      .slice(0, 3);
+    if (reasons.length !== 3) {
+      throw new Error("invalid reason count");
+    }
+    return reasons;
+  } catch (error) {
+    throw new ApiError(502, "OPENAI_ERROR", "AI 이유 추천 형식을 확인하지 못했습니다.");
+  }
+}
+
 function decodeHtmlEntities(value) {
   return String(value || "")
     .replace(/&amp;/g, "&")
@@ -272,7 +391,17 @@ async function handler(req, res) {
 
   try {
     await verifySupabaseUser(req);
-    const payload = normalizePayload(req.body);
+    const requestBody = parseRequestBody(req.body);
+    if (requestBody.task === "reason_options") {
+      const payload = normalizeReasonPayload(requestBody);
+      const reasons = await requestOpenAiReasonOptions(payload);
+      return res.status(200).json({
+        reasons,
+        model: process.env.OPENAI_MODEL || "gpt-6-luna",
+      });
+    }
+
+    const payload = normalizePayload(requestBody);
     const explanation = await requestOpenAiExplanation(payload);
     const videoResult = await searchYouTubeVideos(explanation.videoSearchQuery);
 
@@ -303,4 +432,7 @@ module.exports.__test = {
   explanationSchema,
   extractOutputText,
   normalizePayload,
+  normalizeReasonPayload,
+  parseRequestBody,
+  reasonOptionsSchema,
 };

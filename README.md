@@ -84,6 +84,13 @@ choice rates, dominant decision criteria, before/after change, repeat count,
 and an explainable learner profile. These outputs are educational behavioral
 analytics, not a trained psychological classifier.
 
+After a learner chooses a story action, the signed-in app asks the same Vercel
+serverless endpoint for exactly three scene-specific reason options. Only the
+episode, scene, and selected action are sent. The response uses fixed analysis
+codes so existing behavioral analytics remain comparable. Results are cached
+for the browser session, and a deterministic three-option fallback keeps the
+story usable when the AI request is unavailable or exceeds ten seconds.
+
 ## Optional AI Result Tutor
 
 The result page can send the signed-in learner's episode score, principle

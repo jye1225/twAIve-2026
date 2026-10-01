@@ -67,4 +67,37 @@ assert.deepEqual(schema.required, [
   "videoSearchQuery",
 ]);
 
-console.log("PASS: AI result payload validation, limits, entity decoding, and response parsing");
+const reasonPayload = __test.normalizeReasonPayload({
+  task: "reason_options",
+  episode: {
+    title: "삭제되지 않은 얼굴",
+    topic: "딥페이크 · 초상권",
+    concept: "프라이버시 보호·책임성·투명성",
+  },
+  scene: {
+    title: "합성 앱을 켠 친구들",
+    text: "친구들이 축제 홍보용 얼굴 합성을 제안했다.",
+  },
+  choice: "당사자에게 먼저 동의를 구한다",
+});
+assert.equal(reasonPayload.task, "reason_options");
+assert.equal(reasonPayload.choice, "당사자에게 먼저 동의를 구한다");
+assert.equal(reasonPayload.allowedReasonCodes.length, 6);
+assert.throws(
+  () => __test.normalizeReasonPayload({ task: "reason_options", episode: {}, scene: {}, choice: "" }),
+  (error) => error.status === 400 && error.code === "INVALID_REQUEST",
+);
+
+const reasonSchema = __test.reasonOptionsSchema();
+assert.equal(reasonSchema.properties.reasons.minItems, 3);
+assert.equal(reasonSchema.properties.reasons.maxItems, 3);
+assert.deepEqual(reasonSchema.properties.reasons.items.properties.code.enum, [
+  "rights",
+  "verification",
+  "action",
+  "convenience",
+  "social",
+  "uncertain",
+]);
+
+console.log("PASS: AI result/reason payload validation, limits, schemas, entity decoding, and response parsing");

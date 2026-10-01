@@ -110,6 +110,9 @@ const DECISION_REASONS = [
   },
 ];
 
+const DECISION_REASON_CODES = new Set(DECISION_REASONS.map((reason) => reason.code));
+const decisionReasonCache = new Map();
+
 const episodes = [
   {
     id: "deepfake",
@@ -1074,6 +1077,9 @@ const state = {
   progress: {},
   profile: null,
   pendingDecision: null,
+  decisionReasons: [],
+  decisionReasonStatus: "idle",
+  decisionReasonSource: "",
   sceneStartedAt: null,
 };
 
@@ -1787,7 +1793,22 @@ function resultSnapshotHtml() {
   `;
 }
 
+const AI_COACH_SUGGESTIONS = [
+  "왜 이 점수가 나왔나요?",
+  "가장 부족한 윤리 원칙은 무엇인가요?",
+  "제 선택에서 잘한 점은 무엇인가요?",
+  "다음에는 어떻게 판단하면 좋을까요?",
+];
+
 function aiCoachHtml() {
+  const suggestionButtons = AI_COACH_SUGGESTIONS.map((question) => `
+    <button
+      class="ai-question-suggestion"
+      type="button"
+      data-question="${escapeHtml(question)}"
+    >${escapeHtml(question)}</button>
+  `).join("");
+
   return `
     <section class="ai-coach" aria-labelledby="aiCoachTitle">
       <div class="ai-coach-heading">
@@ -1807,6 +1828,12 @@ function aiCoachHtml() {
             placeholder="예: 왜 투명성 점수가 낮게 나왔나요?"
           />
           <button id="aiExplainButton" type="submit">AI 설명 받기</button>
+        </div>
+        <div class="ai-question-suggestions" aria-labelledby="aiSuggestionLabel">
+          <span id="aiSuggestionLabel">추천 질문</span>
+          <div class="ai-question-suggestion-list">
+            ${suggestionButtons}
+          </div>
         </div>
       </form>
       <p class="ai-data-note">이름과 아이디는 전송하지 않습니다. 생성된 설명은 교육 보조 자료이며 공식 평가나 법률 판단이 아닙니다.</p>
@@ -1937,6 +1964,7 @@ async function requestAiExplanation(event) {
   const button = document.getElementById("aiExplainButton");
   const input = document.getElementById("aiQuestionInput");
   const output = document.getElementById("aiCoachOutput");
+  const suggestionButtons = document.querySelectorAll(".ai-question-suggestion");
   if (!button || !input || !output) return;
 
   if (window.location.protocol === "file:") {
@@ -1945,6 +1973,9 @@ async function requestAiExplanation(event) {
   }
 
   button.disabled = true;
+  suggestionButtons.forEach((suggestionButton) => {
+    suggestionButton.disabled = true;
+  });
   button.textContent = "분석 중...";
   output.hidden = false;
   output.classList.remove("is-error");
@@ -1981,12 +2012,28 @@ async function requestAiExplanation(event) {
   } finally {
     output.removeAttribute("aria-busy");
     button.disabled = false;
+    suggestionButtons.forEach((suggestionButton) => {
+      suggestionButton.disabled = false;
+    });
     button.textContent = "AI 설명 받기";
   }
 }
 
+function requestSuggestedAiExplanation(event) {
+  const input = document.getElementById("aiQuestionInput");
+  const form = document.getElementById("aiCoachForm");
+  const question = event.currentTarget.dataset.question?.trim();
+  if (!input || !form || !question) return;
+
+  input.value = question;
+  form.requestSubmit();
+}
+
 function bindReportActions() {
   document.getElementById("aiCoachForm")?.addEventListener("submit", requestAiExplanation);
+  document.querySelectorAll(".ai-question-suggestion").forEach((button) => {
+    button.addEventListener("click", requestSuggestedAiExplanation);
+  });
 }
 
 function reportHtml(episode, response) {
@@ -2335,6 +2382,9 @@ async function startEpisode(index, options = {}) {
   state.view = "story";
   state.storyMode = "pre";
   state.pendingDecision = null;
+  state.decisionReasons = [];
+  state.decisionReasonStatus = "idle";
+  state.decisionReasonSource = "";
   state.sceneStartedAt = null;
   if (options.loadSaved === false) {
     state.assessments[episodeId] = {
@@ -2372,8 +2422,126 @@ function queueChoice(choice, choiceIndex) {
     responseTimeMs: state.sceneStartedAt ? Date.now() - state.sceneStartedAt : null,
   };
   state.storyMode = "reason";
+  state.decisionReasons = [];
+  state.decisionReasonStatus = "loading";
+  state.decisionReasonSource = "";
   state.feedback = "";
   state.sceneStartedAt = null;
+  render();
+  void loadDecisionReasons();
+}
+
+function decisionReasonCacheKey(decision = state.pendingDecision) {
+  if (!decision) return "";
+  return [activeEpisode().id, decision.sceneId, decision.choiceIndex].join(":");
+}
+
+function fallbackDecisionReasons(decision) {
+  const choice = String(decision?.choice || "이 선택").trim();
+  const shortChoice = choice.length > 34 ? `${choice.slice(0, 34)}…` : choice;
+  return [
+    {
+      code: "rights",
+      label: `“${shortChoice}”가 당사자의 권리와 피해를 가장 잘 고려한다고 생각했다`,
+    },
+    {
+      code: "convenience",
+      label: "지금 상황에서 가장 빠르고 실행하기 쉬운 방법이라고 생각했다",
+    },
+    {
+      code: "social",
+      label: "주변 사람들의 반응과 관계를 고려하면 현실적인 선택이라고 생각했다",
+    },
+  ];
+}
+
+function normalizeDecisionReasons(items) {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set();
+  return items
+    .map((item) => ({
+      code: String(item?.code || "").trim(),
+      label: String(item?.label || "").replace(/\s+/g, " ").trim().slice(0, 100),
+    }))
+    .filter((item) => DECISION_REASON_CODES.has(item.code) && item.label && !seen.has(item.label) && seen.add(item.label))
+    .slice(0, 3);
+}
+
+async function fetchDecisionReasons(decision) {
+  if (window.location.protocol === "file:" || !supabaseClient) {
+    throw new Error("AI 이유 추천을 이용할 수 없는 환경입니다.");
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error("로그인 정보가 만료되었습니다.");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch("/api/explain-result", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${data.session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        task: "reason_options",
+        episode: {
+          title: activeEpisode().title,
+          topic: activeEpisode().topic,
+          concept: activeEpisode().assessment.concept,
+        },
+        scene: {
+          title: decision.scene,
+          text: activeScene().text,
+        },
+        choice: decision.choice,
+      }),
+      signal: controller.signal,
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseData.message || "AI 이유 추천을 불러오지 못했습니다.");
+    }
+    const reasons = normalizeDecisionReasons(responseData.reasons);
+    if (reasons.length !== 3) {
+      throw new Error("AI 이유 추천 형식이 올바르지 않습니다.");
+    }
+    return reasons;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function loadDecisionReasons() {
+  const decision = state.pendingDecision;
+  const cacheKey = decisionReasonCacheKey(decision);
+  if (!decision || !cacheKey) return;
+
+  const cached = decisionReasonCache.get(cacheKey);
+  if (cached) {
+    state.decisionReasons = cached;
+    state.decisionReasonStatus = "ready";
+    state.decisionReasonSource = "ai";
+    render();
+    return;
+  }
+
+  try {
+    const reasons = await fetchDecisionReasons(decision);
+    if (decisionReasonCacheKey() !== cacheKey) return;
+    decisionReasonCache.set(cacheKey, reasons);
+    state.decisionReasons = reasons;
+    state.decisionReasonStatus = "ready";
+    state.decisionReasonSource = "ai";
+  } catch (error) {
+    if (decisionReasonCacheKey() !== cacheKey) return;
+    state.decisionReasons = fallbackDecisionReasons(decision);
+    state.decisionReasonStatus = "ready";
+    state.decisionReasonSource = "fallback";
+  }
   render();
 }
 
@@ -2397,6 +2565,9 @@ async function applyDecisionReason(reason) {
   state.feedback = decision.feedback;
   state.sceneId = decision.next;
   state.pendingDecision = null;
+  state.decisionReasons = [];
+  state.decisionReasonStatus = "idle";
+  state.decisionReasonSource = "";
   state.view = "story";
   state.storyMode = activeScene().end ? "post" : "story";
   state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
@@ -2477,7 +2648,26 @@ function renderAssessmentOptions(type) {
 }
 
 function renderDecisionReasons() {
-  DECISION_REASONS.forEach((reason, index) => {
+  if (state.decisionReasonStatus === "loading") {
+    const status = document.createElement("div");
+    status.className = "reason-options-status";
+    status.setAttribute("role", "status");
+    status.innerHTML = "<strong>AI가 선택에 맞는 이유를 정리하고 있어요.</strong><span>장면과 방금 고른 선택만 전송하며, 잠시 지연되면 기본 이유 3개를 표시합니다.</span>";
+    els.choices.appendChild(status);
+    return;
+  }
+
+  const reasons = state.decisionReasons.length === 3
+    ? state.decisionReasons
+    : fallbackDecisionReasons(state.pendingDecision);
+  const source = document.createElement("p");
+  source.className = "reason-options-source";
+  source.textContent = state.decisionReasonSource === "ai"
+    ? "AI 추천 이유 · 현재 장면과 선택에 맞춰 생성됨"
+    : "기본 이유 · AI 연결이 지연되어 안전한 대체 항목을 표시함";
+  els.choices.appendChild(source);
+
+  reasons.forEach((reason, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "choice-button reason-choice";
