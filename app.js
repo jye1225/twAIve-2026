@@ -2997,6 +2997,7 @@ function render() {
     els.chapterLine.textContent = "Decision";
     els.sceneTitle.textContent = "이 선택을 한 이유는 무엇인가요?";
     els.sceneText.innerHTML = `
+      <p class="decision-context"><span>방금 본 질문</span><strong>${escapeHtml(state.pendingDecision?.scene || "-")}</strong></p>
       <p class="selected-decision"><span>방금 선택</span><strong>${escapeHtml(state.pendingDecision?.choice || "-")}</strong></p>
       <p class="reason-prompt">판단할 때 가장 크게 작용한 기준 하나를 골라주세요.</p>
     `;
