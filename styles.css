@@ -49,6 +49,27 @@ body {
     "Malgun Gothic", system-ui, sans-serif;
   color: var(--ink);
   background: #d9d9d9;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3,
+.focus-card strong,
+.followup-question,
+.episode-card-title,
+.choice-button > span {
+  text-wrap: balance;
+}
+
+p,
+.scene-text,
+blockquote,
+.feedback,
+.selected-decision,
+.decision-context {
+  text-wrap: pretty;
 }
 
 button {
