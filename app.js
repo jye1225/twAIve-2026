@@ -1061,8 +1061,9 @@ const GUIDELINE_RUBRICS = {
 
 const ScoringEngine = window.TWAIVE_SCORING;
 const LearningModel = window.TWAIVE_LEARNING_MODEL;
+const DemoAnalytics = window.TWAIVE_DEMO_ANALYTICS;
 
-if (!ScoringEngine || !LearningModel) {
+if (!ScoringEngine || !LearningModel || !DemoAnalytics) {
   throw new Error("점수 계산 또는 학습 분석 모델을 불러오지 못했습니다.");
 }
 
@@ -1088,6 +1089,7 @@ const state = {
     data: null,
     error: "",
   },
+  teacherDashboardMode: "actual",
 };
 
 const SUPABASE_CONFIG = window.TWAIVE_SUPABASE || {};
@@ -1593,6 +1595,7 @@ async function logout() {
   state.profile = null;
   state.progress = {};
   state.teacherDashboard = { authorized: false, status: "idle", data: null, error: "" };
+  state.teacherDashboardMode = "actual";
   setTeacherNavigation(false);
   showLogin();
 }
@@ -2922,6 +2925,28 @@ function renderChoices(scene) {
   }
 
   if (state.view === "teacher") {
+    const actual = document.createElement("button");
+    actual.type = "button";
+    actual.className = `choice-button ${state.teacherDashboardMode === "actual" ? "is-primary" : ""}`;
+    actual.innerHTML = "<strong>실제 데이터</strong>Supabase 익명 집계";
+    actual.addEventListener("click", () => {
+      state.teacherDashboardMode = "actual";
+      render();
+    });
+    els.choices.appendChild(actual);
+
+    const demo = document.createElement("button");
+    demo.type = "button";
+    demo.className = `choice-button ${state.teacherDashboardMode === "demo" ? "is-primary" : ""}`;
+    demo.innerHTML = "<strong>시연용 데이터</strong>120명 합성 표본";
+    demo.addEventListener("click", () => {
+      state.teacherDashboardMode = "demo";
+      render();
+    });
+    els.choices.appendChild(demo);
+
+    if (state.teacherDashboardMode === "demo") return;
+
     const refresh = document.createElement("button");
     refresh.type = "button";
     refresh.className = "choice-button is-primary";
@@ -3064,10 +3089,17 @@ function teacherDashboardHtml() {
     return `<div class="empty-state"><strong>교수자 통계를 불러올 수 없어요</strong><p>${escapeHtml(dashboard.error || "교수자로 등록된 계정에서만 확인할 수 있습니다.")}</p></div>`;
   }
 
-  const data = dashboard.data;
+  const actualData = dashboard.data;
+  const isDemo = state.teacherDashboardMode === "demo";
+  const data = isDemo
+    ? DemoAnalytics.createDashboard(episodes, {
+        learnerCount: 120,
+        principleKeys: Object.keys(GUIDELINE_PRINCIPLES),
+      })
+    : actualData;
   const activeLearners = Number(data.activeLearners || 0);
-  const consentingLearners = Number(data.consentingLearners || 0);
-  const consentingRecords = Number(data.consentingRecords || 0);
+  const consentingLearners = Number(actualData.consentingLearners || 0);
+  const consentingRecords = Number(actualData.consentingRecords || 0);
   const averageDelta = data.averageReflectionDelta === null || data.averageReflectionDelta === undefined
     ? "-"
     : `${Number(data.averageReflectionDelta) > 0 ? "+" : ""}${Number(data.averageReflectionDelta).toFixed(1)}단계`;
@@ -3105,11 +3137,19 @@ function teacherDashboardHtml() {
 
   return `
     <section class="teacher-dashboard" aria-label="교수자용 익명 학습 분석">
+      ${isDemo ? `
+        <div class="demo-data-notice" role="status">
+          <strong>시연용 합성 데이터</strong>
+          <span>120명의 가상 학습 기록을 고정 난수로 생성한 화면입니다. 실제 사용자 통계, 연구 결과, 모델 학습에는 포함되지 않습니다.</span>
+        </div>
+      ` : ""}
       <div class="teacher-kpis">
-        <article><span>학습 참여자</span><strong>${activeLearners}명</strong><small>한 번 이상 기록한 계정</small></article>
+        <article><span>${isDemo ? "가상 학습자" : "학습 참여자"}</span><strong>${activeLearners}명</strong><small>${isDemo ? "시연을 위한 합성 표본" : "한 번 이상 기록한 계정"}</small></article>
         <article><span>전체 완료율</span><strong>${dashboardPercent(data.completionRate)}</strong><small>${data.completedEpisodes}/${data.expectedCompletions}개 완료</small></article>
         <article><span>평균 생각 변화</span><strong>${averageDelta}</strong><small>사후 단계 - 사전 단계</small></article>
-        <article><span>연구 활용 동의</span><strong>${consentingLearners}명</strong><small>${consentingRecords}개 학습 기록</small></article>
+        ${isDemo
+          ? `<article><span>합성 응답</span><strong>${data.simulatedResponses}건</strong><small>실제 DB와 완전히 분리</small></article>`
+          : `<article><span>연구 활용 동의</span><strong>${consentingLearners}명</strong><small>${consentingRecords}개 학습 기록</small></article>`}
       </div>
 
       <div class="teacher-dashboard-grid">
@@ -3131,10 +3171,12 @@ function teacherDashboardHtml() {
           <div class="dashboard-bar" aria-label="모델 학습 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
             <span style="--dashboard-rate:${trainingReadiness}%"></span>
           </div>
-          <small>기준 미달일 때는 Decision Tree나 Logistic Regression 결과를 만들지 않습니다.</small>
+          <small>${isDemo ? "현재 보이는 합성 데이터는 준비도와 모델 성능 계산에서 제외됩니다." : "기준 미달일 때는 Decision Tree나 Logistic Regression 결과를 만들지 않습니다."}</small>
         </section>
       </div>
-      <p class="dashboard-privacy-note">사용자 이름과 개별 답변은 표시하지 않고 서버에서 집계된 통계만 제공합니다. 마지막 집계 ${escapeHtml(formatProfileDate(data.generatedAt))}</p>
+      <p class="dashboard-privacy-note">${isDemo
+        ? `합성 데이터 생성기 v${escapeHtml(data.demoVersion)} · OpenAI API 및 Supabase를 사용하지 않습니다.`
+        : `사용자 이름과 개별 답변은 표시하지 않고 서버에서 집계된 통계만 제공합니다. 마지막 집계 ${escapeHtml(formatProfileDate(data.generatedAt))}`}</p>
     </section>
   `;
 }

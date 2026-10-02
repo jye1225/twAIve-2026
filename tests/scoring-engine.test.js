@@ -4,6 +4,7 @@ const vm = require("vm");
 
 const engine = require("../scoring-engine.js");
 const learningModel = require("../learning-model.js");
+const demoAnalytics = require("../analysis/demo-analytics.js");
 
 const levelDefinitions = {
   0: { label: "위반" },
@@ -89,7 +90,13 @@ assert.strictEqual(analysis.attemptCount, 2);
 
 const source = fs.readFileSync("app.js", "utf8");
 const prefix = source.slice(0, source.indexOf("const state ="));
-const context = { window: { TWAIVE_SCORING: engine, TWAIVE_LEARNING_MODEL: learningModel } };
+const context = {
+  window: {
+    TWAIVE_SCORING: engine,
+    TWAIVE_LEARNING_MODEL: learningModel,
+    TWAIVE_DEMO_ANALYTICS: demoAnalytics,
+  },
+};
 vm.createContext(context);
 vm.runInContext(
   `${prefix}\nthis.__episodes = episodes; this.__rubrics = GUIDELINE_RUBRICS; this.__principles = GUIDELINE_PRINCIPLES;`,

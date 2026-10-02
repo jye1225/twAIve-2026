@@ -3290,6 +3290,25 @@ blockquote.is-warning {
   gap: 14px;
 }
 
+.demo-data-notice {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #efb64d;
+  border-left: 4px solid #ef9b0f;
+  background: #fff8e8;
+  color: #66450f;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.demo-data-notice strong {
+  color: #8a5700;
+  font-size: 0.84rem;
+}
+
 .teacher-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3530,6 +3549,11 @@ blockquote.is-warning {
 
   .bottom-nav.has-teacher .nav-item {
     font-size: 0.72rem;
+  }
+
+  .demo-data-notice {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
 
