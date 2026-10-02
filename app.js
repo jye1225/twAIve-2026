@@ -3100,11 +3100,13 @@ function teacherDashboardHtml() {
   const activeLearners = Number(data.activeLearners || 0);
   const consentingLearners = Number(actualData.consentingLearners || 0);
   const consentingRecords = Number(actualData.consentingRecords || 0);
+  const eligibleTrainingRecords = Number(actualData.eligibleTrainingRecords || 0);
+  const expertLabeledRecords = Number(actualData.expertLabeledRecords || 0);
   const averageDelta = data.averageReflectionDelta === null || data.averageReflectionDelta === undefined
     ? "-"
     : `${Number(data.averageReflectionDelta) > 0 ? "+" : ""}${Number(data.averageReflectionDelta).toFixed(1)}단계`;
-  const minimumSamples = Number(data.minimumTrainingSamples || 100);
-  const trainingReadiness = Math.min(100, (consentingRecords / minimumSamples) * 100);
+  const minimumSamples = Number(actualData.minimumTrainingSamples || 50);
+  const trainingReadiness = Math.min(100, (expertLabeledRecords / minimumSamples) * 100);
   const weakestRows = (data.weakestPrinciples || [])
     .slice(0, 7)
     .map((item) => dashboardBarRow(
@@ -3166,12 +3168,16 @@ function teacherDashboardHtml() {
           ${completionRows ? `<ol class="dashboard-bars">${completionRows}</ol>` : `<p class="dashboard-empty">아직 완료 기록이 없습니다.</p>`}
         </section>
         <section class="training-readiness">
-          <div class="dashboard-section-title"><span>모델 검증</span><strong>실제 데이터 준비도</strong></div>
-          <p><b>${consentingRecords}/${minimumSamples}건</b> · 동의한 실제 기록이 최소 기준에 도달해야 통계 모델을 학습합니다.</p>
-          <div class="dashboard-bar" aria-label="모델 학습 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
+          <div class="dashboard-section-title"><span>파일럿 모델</span><strong>학습 데이터 준비 단계</strong></div>
+          <ol class="training-data-steps" aria-label="파일럿 모델 데이터 준비 현황">
+            <li><span>1. 동의 원본 기록</span><b>${consentingRecords}건</b></li>
+            <li><span>2. 분석 조건 충족</span><b>${eligibleTrainingRecords}건</b></li>
+            <li><span>3. 전문가 라벨 완료</span><b>${expertLabeledRecords}/${minimumSamples}건</b></li>
+          </ol>
+          <div class="dashboard-bar" aria-label="전문가 라벨 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
             <span style="--dashboard-rate:${trainingReadiness}%"></span>
           </div>
-          <small>${isDemo ? "현재 보이는 합성 데이터는 준비도와 모델 성능 계산에서 제외됩니다." : "기준 미달일 때는 Decision Tree나 Logistic Regression 결과를 만들지 않습니다."}</small>
+          <small>50건은 예비 분석을 위한 파일럿 기준입니다. 기준 미달이면 모델을 학습하지 않으며, 달성 후에도 정확도·F1·혼동행렬을 함께 검토합니다. ${isDemo ? "현재 보이는 합성 데이터는 이 수치에서 제외됩니다." : "동의하지 않은 계정의 기록은 포함하지 않습니다."}</small>
         </section>
       </div>
       <p class="dashboard-privacy-note">${isDemo

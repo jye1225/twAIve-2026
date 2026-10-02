@@ -155,6 +155,25 @@ create table if not exists public.teacher_accounts (
 alter table public.teacher_accounts enable row level security;
 revoke all on public.teacher_accounts from anon, authenticated;
 
+-- Expert labels are deliberately separated from learner records. Only project
+-- administrators can add them after an agreed review process.
+create table if not exists public.model_training_labels (
+  progress_id uuid primary key references public.user_episode_progress(id) on delete cascade,
+  expert_label text not null check (expert_label in (
+    'balanced',
+    'agency',
+    'rights',
+    'action',
+    'verification',
+    'risk'
+  )),
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz not null default now()
+);
+
+alter table public.model_training_labels enable row level security;
+revoke all on public.model_training_labels from anon, authenticated;
+
 create or replace function public.get_teacher_dashboard()
 returns jsonb
 language plpgsql
@@ -165,6 +184,8 @@ declare
   active_learners integer := 0;
   consenting_learners integer := 0;
   consenting_records integer := 0;
+  eligible_training_records integer := 0;
+  expert_labeled_records integer := 0;
   completed_episodes integer := 0;
   expected_completions integer := 0;
   completion_rate numeric := 0;
@@ -185,6 +206,27 @@ begin
   from public.profiles p
   join public.user_episode_progress progress on progress.user_id = p.id
   where p.analytics_consent = true;
+
+  select count(*)
+  into eligible_training_records
+  from public.profiles p
+  join public.user_episode_progress progress on progress.user_id = p.id
+  where p.analytics_consent = true
+    and progress.completed = true
+    and jsonb_typeof(progress.scores) = 'object'
+    and progress.scores <> '{}'::jsonb
+    and jsonb_typeof(progress.history) = 'array'
+    and jsonb_array_length(progress.history) > 0
+    and progress.assessment ? 'pre'
+    and progress.assessment ? 'post';
+
+  select count(*)
+  into expert_labeled_records
+  from public.model_training_labels labels
+  join public.user_episode_progress progress on progress.id = labels.progress_id
+  join public.profiles p on p.id = progress.user_id
+  where p.analytics_consent = true
+    and progress.completed = true;
 
   select count(*)
   into consenting_records
@@ -214,11 +256,13 @@ begin
     'activeLearners', active_learners,
     'consentingLearners', consenting_learners,
     'consentingRecords', consenting_records,
+    'eligibleTrainingRecords', eligible_training_records,
+    'expertLabeledRecords', expert_labeled_records,
     'completedEpisodes', completed_episodes,
     'expectedCompletions', expected_completions,
     'completionRate', completion_rate,
     'averageReflectionDelta', average_reflection_delta,
-    'minimumTrainingSamples', 100,
+    'minimumTrainingSamples', 50,
     'generatedAt', now(),
     'weakestPrinciples', coalesce((
       select jsonb_agg(

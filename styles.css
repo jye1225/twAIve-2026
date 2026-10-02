@@ -3427,6 +3427,31 @@ blockquote.is-warning {
   margin: 0 0 10px;
 }
 
+.training-data-steps {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.training-data-steps li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #d8e5f4;
+  color: #526d8e;
+  font-size: 0.76rem;
+}
+
+.training-data-steps b {
+  flex: 0 0 auto;
+  color: var(--blue);
+  font-size: 0.84rem;
+}
+
 .training-readiness small {
   display: block;
   margin-top: 8px;

@@ -8,7 +8,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-MINIMUM_SAMPLES = 100
+MINIMUM_SAMPLES = 50
 MINIMUM_SAMPLES_PER_CLASS = 10
 NUMERIC_FEATURES = [
     "human_centeredness_score",
