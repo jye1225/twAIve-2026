@@ -210,11 +210,72 @@ function extractOutputText(responseData) {
   return "";
 }
 
-async function requestOpenAiExplanation(payload) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new ApiError(503, "SERVER_NOT_CONFIGURED", "OpenAI API 키가 설정되지 않았습니다.");
+function extractRefusal(responseData) {
+  for (const item of responseData.output || []) {
+    for (const content of item.content || []) {
+      if (content.type === "refusal" && typeof content.refusal === "string") {
+        return cleanText(content.refusal, 300);
+      }
+    }
   }
+  return "";
+}
 
+function parseStructuredOutput(outputText) {
+  const trimmed = String(outputText || "").trim();
+  if (!trimmed) throw new Error("empty output");
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (!fenced) throw error;
+    return JSON.parse(fenced[1]);
+  }
+}
+
+function validateExplanation(value) {
+  if (
+    !value ||
+    typeof value.summary !== "string" ||
+    typeof value.answer !== "string" ||
+    !Array.isArray(value.scoreReasons) ||
+    value.scoreReasons.length < 2 ||
+    !Array.isArray(value.nextActions) ||
+    value.nextActions.length < 2 ||
+    typeof value.videoSearchQuery !== "string"
+  ) {
+    throw new Error("invalid explanation shape");
+  }
+  return value;
+}
+
+function buildFallbackExplanation(payload) {
+  const ranked = [...payload.principles].sort((a, b) => a.score - b.score);
+  const weakest = ranked[0];
+  const strongest = ranked[ranked.length - 1];
+  const recentChoice = payload.choices[payload.choices.length - 1];
+  const questionLead = payload.question
+    ? `질문한 내용은 이번 선택 기록에서 ${weakest.name} 기준과 가장 밀접해.`
+    : `이번 결과에서는 ${weakest.name} 기준을 먼저 살펴보면 이해하기 쉬워.`;
+
+  return {
+    summary: `${payload.episode.title}에서 ${strongest.name}은 강점으로, ${weakest.name}은 보완할 기준으로 나타났어.`,
+    answer: `${questionLead} ${weakest.name} 점수는 관련 선택에서 위험을 확인하거나 설명하고 후속 행동으로 옮긴 정도를 반영한 결과야.`,
+    scoreReasons: [
+      `${strongest.name}은 ${strongest.score}점으로, 관련 상황에서 기준을 비교적 꾸준히 적용했어.`,
+      `${weakest.name}은 ${weakest.score}점으로, 판단을 실제 확인이나 설명 행동까지 이어가는 연습이 더 필요해.`,
+      recentChoice ? `마지막 선택인 “${recentChoice.choice}”도 전체 선택 흐름에 함께 반영됐어.` : "에피소드에서 고른 선택의 행동 단계를 종합해 점수를 계산했어.",
+    ],
+    nextActions: [
+      `비슷한 상황에서는 ${weakest.name}과 관련된 위험이나 영향을 먼저 한 가지 확인해봐.`,
+      "확인한 내용을 당사자에게 설명하고, 필요한 동의나 수정 행동까지 이어가봐.",
+    ],
+    videoSearchQuery: `${payload.episode.topic} ${weakest.name} AI 윤리 교육`,
+  };
+}
+
+async function requestOpenAiExplanationAttempt(payload, maxOutputTokens) {
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {
@@ -225,7 +286,7 @@ async function requestOpenAiExplanation(payload) {
       model: process.env.OPENAI_MODEL || "gpt-6-luna",
       store: false,
       reasoning: { effort: "low" },
-      max_output_tokens: 800,
+      max_output_tokens: maxOutputTokens,
       instructions: [
         "당신은 대학생을 위한 AI 윤리 학습 튜터입니다.",
         "입력된 점수는 대한민국 인공지능 윤리원칙을 교육용 0~4 행동 루브릭으로 변환한 결과입니다.",
@@ -253,15 +314,52 @@ async function requestOpenAiExplanation(payload) {
     throw new ApiError(502, "OPENAI_ERROR", "AI 설명 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
   }
 
+  const refusal = extractRefusal(responseData);
+  if (refusal) {
+    console.warn("OpenAI explanation refusal", responseData.id || "unknown");
+    throw new ApiError(502, "OPENAI_REFUSAL", "요청한 내용을 AI가 설명하지 못했습니다.");
+  }
+  if (responseData.status === "incomplete") {
+    const reason = responseData.incomplete_details?.reason || "unknown";
+    const error = new ApiError(502, "OPENAI_INCOMPLETE", "AI 설명이 완성되기 전에 중단되었습니다.");
+    error.retryable = reason === "max_output_tokens";
+    throw error;
+  }
+
   const outputText = extractOutputText(responseData);
   if (!outputText) {
-    throw new ApiError(502, "OPENAI_ERROR", "OpenAI 응답에서 설명을 찾지 못했습니다.");
+    const error = new ApiError(502, "OPENAI_EMPTY", "OpenAI 응답에서 설명을 찾지 못했습니다.");
+    error.retryable = true;
+    throw error;
   }
 
   try {
-    return JSON.parse(outputText);
+    return validateExplanation(parseStructuredOutput(outputText));
   } catch (error) {
-    throw new ApiError(502, "OPENAI_ERROR", "AI 설명 형식을 확인하지 못했습니다. 다시 시도해주세요.");
+    const parseError = new ApiError(502, "OPENAI_INVALID_FORMAT", "AI 설명 형식을 확인하지 못했습니다.");
+    parseError.retryable = true;
+    throw parseError;
+  }
+}
+
+async function requestOpenAiExplanation(payload) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new ApiError(503, "SERVER_NOT_CONFIGURED", "OpenAI API 키가 설정되지 않았습니다.");
+  }
+
+  try {
+    return { explanation: await requestOpenAiExplanationAttempt(payload, 1600), source: "openai" };
+  } catch (error) {
+    if (error.retryable) {
+      try {
+        return { explanation: await requestOpenAiExplanationAttempt(payload, 2400), source: "openai-retry" };
+      } catch (retryError) {
+        console.warn("OpenAI explanation retry failed", retryError.code || "unknown");
+      }
+    } else {
+      console.warn("OpenAI explanation fallback", error.code || "unknown");
+    }
+    return { explanation: buildFallbackExplanation(payload), source: "local-fallback" };
   }
 }
 
@@ -410,7 +508,8 @@ async function handler(req, res) {
     }
 
     const payload = normalizePayload(requestBody);
-    const explanation = await requestOpenAiExplanation(payload);
+    const result = await requestOpenAiExplanation(payload);
+    const explanation = result.explanation;
     const videoResult = await searchYouTubeVideos(explanation.videoSearchQuery);
 
     return res.status(200).json({
@@ -424,6 +523,7 @@ async function handler(req, res) {
       videoSearchUrl: videoResult.searchUrl,
       videoProvider: videoResult.provider,
       model: process.env.OPENAI_MODEL || "gpt-6-luna",
+      explanationSource: result.source,
     });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
@@ -438,10 +538,14 @@ module.exports.__test = {
   cleanText,
   decodeHtmlEntities,
   explanationSchema,
+  buildFallbackExplanation,
+  extractRefusal,
   extractOutputText,
   isCasualStudentReason,
   normalizePayload,
   normalizeReasonPayload,
   parseRequestBody,
+  parseStructuredOutput,
   reasonOptionsSchema,
+  validateExplanation,
 };

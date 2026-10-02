@@ -56,6 +56,11 @@ assert.equal(
   __test.extractOutputText({ output: [{ content: [{ type: "output_text", text: "설명" }] }] }),
   "설명",
 );
+assert.equal(
+  __test.extractRefusal({ output: [{ content: [{ type: "refusal", refusal: "응답할 수 없습니다." }] }] }),
+  "응답할 수 없습니다.",
+);
+assert.deepEqual(__test.parseStructuredOutput('```json\n{"summary":"설명"}\n```'), { summary: "설명" });
 
 const schema = __test.explanationSchema();
 assert.equal(schema.additionalProperties, false);
@@ -102,5 +107,11 @@ assert.deepEqual(reasonSchema.properties.reasons.items.properties.code.enum, [
 assert.equal(__test.isCasualStudentReason("당사자가 불편할 것 같아서"), true);
 assert.equal(__test.isCasualStudentReason("당사자를 먼저 배려해야 한다고 생각합니다."), false);
 assert.equal(__test.isCasualStudentReason("친구들과 같이 해결하면 좋을 것 같아요"), false);
+
+const fallback = __test.buildFallbackExplanation(normalized);
+assert.match(fallback.summary, /투명성/);
+assert.equal(fallback.scoreReasons.length, 3);
+assert.equal(fallback.nextActions.length, 2);
+assert.match(fallback.videoSearchQuery, /AI 윤리 교육/);
 
 console.log("PASS: AI result/reason payload validation, limits, schemas, entity decoding, and response parsing");

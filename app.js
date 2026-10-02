@@ -1916,6 +1916,9 @@ function renderAiExplanation(data) {
   output.replaceChildren();
   output.hidden = false;
   output.classList.remove("is-error");
+  if (data.explanationSource === "local-fallback") {
+    appendTextElement(output, "p", "ai-explanation-notice", "AI 연결이 잠시 불안정해 저장된 점수 기준으로 기본 분석을 보여줘요.");
+  }
   appendTextElement(output, "strong", "ai-explanation-summary", data.explanation.summary);
   appendTextElement(output, "p", "ai-explanation-answer", data.explanation.answer);
   appendExplanationList(output, "점수가 나온 이유", data.explanation.scoreReasons || []);

@@ -3175,6 +3175,19 @@ blockquote.is-warning {
   line-height: 1.45;
 }
 
+.ai-explanation-notice {
+  width: fit-content;
+  margin: 0;
+  padding: 5px 9px;
+  border: 1px solid #f1c36a;
+  border-radius: 4px;
+  background: #fff8e8;
+  color: #76511a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .ai-explanation-answer {
   color: #263a54;
   line-height: 1.65;
