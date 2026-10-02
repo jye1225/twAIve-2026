@@ -3452,6 +3452,45 @@ blockquote.is-warning {
   font-size: 0.84rem;
 }
 
+.teaching-guidance-section {
+  grid-column: 1 / -1;
+}
+
+.teaching-guide-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.teaching-guide-item {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px;
+  border-left: 3px solid var(--blue);
+  background: #f3f8ff;
+}
+
+.teaching-guide-item span,
+.teaching-guide-item small {
+  color: #667d99;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.teaching-guide-item strong {
+  color: var(--blue-strong);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.teaching-guide-item p {
+  margin: 0;
+  color: #253b58;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
 .training-readiness small {
   display: block;
   margin-top: 8px;
@@ -3562,6 +3601,10 @@ blockquote.is-warning {
   }
 
   .ai-video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .teaching-guide-list {
     grid-template-columns: 1fr;
   }
 }

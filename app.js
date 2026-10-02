@@ -1,4 +1,5 @@
 const SCORING_VERSION = 3;
+const TeachingStrategy = window.TWAIVE_TEACHING_STRATEGY;
 
 const ETHICS_SOURCES = {
   primary: {
@@ -3101,12 +3102,22 @@ function teacherDashboardHtml() {
   const consentingLearners = Number(actualData.consentingLearners || 0);
   const consentingRecords = Number(actualData.consentingRecords || 0);
   const eligibleTrainingRecords = Number(actualData.eligibleTrainingRecords || 0);
-  const expertLabeledRecords = Number(actualData.expertLabeledRecords || 0);
   const averageDelta = data.averageReflectionDelta === null || data.averageReflectionDelta === undefined
     ? "-"
     : `${Number(data.averageReflectionDelta) > 0 ? "+" : ""}${Number(data.averageReflectionDelta).toFixed(1)}단계`;
-  const minimumSamples = Number(actualData.minimumTrainingSamples || 50);
-  const trainingReadiness = Math.min(100, (expertLabeledRecords / minimumSamples) * 100);
+  const minimumSamples = Number(actualData.minimumClusteringSamples || 50);
+  const trainingReadiness = Math.min(100, (eligibleTrainingRecords / minimumSamples) * 100);
+  const teachingGuides = TeachingStrategy
+    .recommendMany(data.weakestPrinciples || [], GUIDELINE_PRINCIPLES, 3)
+    .map((guide) => `
+      <article class="teaching-guide-item">
+        <span>${escapeHtml(guide.principleName)} 지도 제안</span>
+        <strong>${escapeHtml(guide.title)}</strong>
+        <p>${escapeHtml(guide.activity)}</p>
+        <small>${escapeHtml(guide.observation)}</small>
+      </article>
+    `)
+    .join("");
   const weakestRows = (data.weakestPrinciples || [])
     .slice(0, 7)
     .map((item) => dashboardBarRow(
@@ -3168,16 +3179,20 @@ function teacherDashboardHtml() {
           ${completionRows ? `<ol class="dashboard-bars">${completionRows}</ol>` : `<p class="dashboard-empty">아직 완료 기록이 없습니다.</p>`}
         </section>
         <section class="training-readiness">
-          <div class="dashboard-section-title"><span>파일럿 모델</span><strong>학습 데이터 준비 단계</strong></div>
-          <ol class="training-data-steps" aria-label="파일럿 모델 데이터 준비 현황">
+          <div class="dashboard-section-title"><span>학습 패턴 분석</span><strong>군집분석 데이터 준비</strong></div>
+          <ol class="training-data-steps" aria-label="학습 패턴 분석 데이터 준비 현황">
             <li><span>1. 동의 원본 기록</span><b>${consentingRecords}건</b></li>
             <li><span>2. 분석 조건 충족</span><b>${eligibleTrainingRecords}건</b></li>
-            <li><span>3. 전문가 라벨 완료</span><b>${expertLabeledRecords}/${minimumSamples}건</b></li>
+            <li><span>파일럿 분석 기준</span><b>${eligibleTrainingRecords}/${minimumSamples}건</b></li>
           </ol>
-          <div class="dashboard-bar" aria-label="전문가 라벨 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
+          <div class="dashboard-bar" aria-label="군집분석 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
             <span style="--dashboard-rate:${trainingReadiness}%"></span>
           </div>
-          <small>50건은 예비 분석을 위한 파일럿 기준입니다. 기준 미달이면 모델을 학습하지 않으며, 달성 후에도 정확도·F1·혼동행렬을 함께 검토합니다. ${isDemo ? "현재 보이는 합성 데이터는 이 수치에서 제외됩니다." : "동의하지 않은 계정의 기록은 포함하지 않습니다."}</small>
+          <small>50건이 모이면 정답 라벨 없이 응답 패턴이 비슷한 학습자 집단을 탐색합니다. ${isDemo ? "현재 보이는 합성 데이터는 이 수치에서 제외됩니다." : "동의하지 않은 계정의 기록은 포함하지 않습니다."}</small>
+        </section>
+        <section class="teaching-guidance-section">
+          <div class="dashboard-section-title"><span>교육 활용</span><strong>취약 원칙별 지도 제안</strong></div>
+          <div class="teaching-guide-list">${teachingGuides || `<p class="dashboard-empty">분석할 선택 기록이 아직 없습니다.</p>`}</div>
         </section>
       </div>
       <p class="dashboard-privacy-note">${isDemo

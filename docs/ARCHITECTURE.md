@@ -16,9 +16,9 @@ flowchart LR
     H[(Supabase)] --> I[보안 집계 함수]
     I --> J[교수자 대시보드]
     H --> K[동의한 실제 데이터]
-    K --> L[전문가 라벨링]
-    L --> M[Decision Tree / Logistic Regression]
-    M --> N[Accuracy / Macro F1 / Confusion Matrix]
+    K --> L[특징 표준화]
+    L --> M[K-means 학습 패턴 군집화]
+    M --> N[집단별 취약 원칙과 지도 활동]
 ```
 
 ## 모듈 책임
@@ -29,6 +29,7 @@ flowchart LR
 | 특징 추출 | `analysis/feature-extractor.js` | 점수, 판단 이유, 응답 시간, 사전·사후 응답 | 취약 원칙, 위험률, 적극 실천률, 이유 분포, 평균 응답 시간 |
 | 학습자 유형 분류 | `analysis/learner-classifier.js` | 특징 벡터 | 학습자 유형, 분류 규칙, 데이터 신뢰도 |
 | 콘텐츠 추천 | `analysis/content-recommender.js` | 취약 원칙, 완료 기록 | 다음 에피소드와 실천 행동 |
+| 지도 방법 추천 | `analysis/teaching-strategy.js` | 집단별 취약 원칙 | 교수자용 수업 활동과 관찰 기준 |
 | 통합 모델 | `analysis/learning-model.js` | 위 네 모듈의 결과 | 학생용 분석 결과와 판단 추적 정보 |
 | 호환 어댑터 | `scoring-engine.js` | 기존 앱 호출 | 기존 API를 유지한 모듈 호출 결과 |
 
@@ -40,10 +41,11 @@ flowchart LR
 - 평균 사전·사후 변화
 - 원칙별 평균과 취약 순위
 - 에피소드별 완료율
-- 익명 연구 활용 동의 인원, 동의 기록 수와 학습 준비도
+- 익명 연구 활용 동의 인원, 분석 조건 충족 기록 수와 군집분석 준비도
+- 취약 원칙에 대응하는 수업 활동과 관찰 기준
 
 교수자 화면에는 별도의 **시연용 합성 데이터** 전환 기능이 있다. 합성 데이터는 `analysis/demo-analytics.js`가 고정 난수로 브라우저 안에서 생성하며 Supabase, 실제 사용자 통계, 연구 활용 동의 수, 머신러닝 학습 데이터에 저장하거나 합산하지 않는다.
 
-## 통계 모델 전환 조건
+## 학습 패턴 군집분석 조건
 
-운영 중인 모델은 설명 가능한 규칙 기반 모델이다. `ml/train_models.py`는 동의 및 전문가 라벨 데이터가 100건 이상이고 각 클래스가 10건 이상일 때만 Logistic Regression과 Decision Tree를 학습한다. 실제 지표가 생성되기 전에는 정확도나 F1을 화면에 표시하지 않는다.
+학생 개인에게 제공하는 결과는 설명 가능한 정책 기반 모델이다. 교수자용 집단 분석은 동의하고 분석 조건을 충족한 기록이 50건 이상일 때 `ml/cluster_learners.py`로 K-means 군집분석을 실행한다. 군집은 학생의 성격이나 능력을 진단하지 않으며, 비슷한 학습 어려움을 찾아 수업 활동을 설계하는 탐색적 보조 자료로만 사용한다.

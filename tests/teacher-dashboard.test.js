@@ -12,11 +12,9 @@ assert.match(schema, /'averageReflectionDelta'/);
 assert.match(schema, /'weakestPrinciples'/);
 assert.match(schema, /'episodeCompletion'/);
 assert.match(schema, /'consentingRecords'/);
-assert.match(schema, /create table if not exists public\.model_training_labels/i);
-assert.match(schema, /revoke all on public\.model_training_labels from anon, authenticated/i);
 assert.match(schema, /'eligibleTrainingRecords'/);
-assert.match(schema, /'expertLabeledRecords'/);
-assert.match(schema, /'minimumTrainingSamples', 50/);
+assert.match(schema, /'minimumClusteringSamples', 50/);
+assert.doesNotMatch(schema, /expertLabeledRecords|model_training_labels/i);
 assert.match(schema, /score_entry\.key in \([\s\S]*'humanCenteredness'[\s\S]*'transparency'[\s\S]*\)/);
 assert.doesNotMatch(schema, /'username'\s*,|'authEmail'\s*,|'displayName'\s*,/i);
 

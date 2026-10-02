@@ -93,7 +93,8 @@ analytics, not a trained psychological classifier.
 The teacher dashboard uses the Supabase `get_teacher_dashboard()` security-definer
 function. Only accounts listed in `teacher_accounts` receive anonymous aggregate
 statistics: question risk rates, average before/after change, weakest principles,
-episode completion, and consented training-data readiness. Individual usernames,
+episode completion, consented pattern-analysis readiness, and teaching suggestions
+for weak principles. Individual usernames,
 emails, and answers are not returned.
 
 After running the latest `supabase-schema.sql`, edit and run
@@ -101,11 +102,11 @@ After running the latest `supabase-schema.sql`, edit and run
 
 ## Data-driven Model Pipeline
 
-`ml/train_models.py` compares Logistic Regression and Decision Tree models using
-consented, expert-labeled user data. It produces accuracy, macro F1,
-cross-validation metrics, a confusion matrix, and the selected model artifact.
-Training is blocked below 100 consented labeled samples or when a class has fewer
-than 10 samples. No synthetic result is presented as a trained model.
+`ml/cluster_learners.py` uses K-means to explore groups with similar response
+patterns from consented records. It uses the seven principle scores, decision
+reasons, response time, before/after change, and action rates to summarize each
+group's weak principle and a matching teaching activity. Analysis is blocked
+below 50 eligible records, and synthetic demo data is never included.
 
 See `docs/ARCHITECTURE.md`, `docs/SCORING_MODEL.md`, and `ml/README.md`.
 
