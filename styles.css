@@ -2820,7 +2820,7 @@ blockquote.is-warning {
   overflow: clip;
 }
 
-.result-analysis summary {
+.result-analysis > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2833,11 +2833,11 @@ blockquote.is-warning {
   list-style: none;
 }
 
-.result-analysis summary::-webkit-details-marker {
+.result-analysis > summary::-webkit-details-marker {
   display: none;
 }
 
-.result-analysis summary::after {
+.result-analysis > summary::after {
   content: "+";
   flex: 0 0 auto;
   width: 28px;
@@ -2850,21 +2850,21 @@ blockquote.is-warning {
   line-height: 1;
 }
 
-.result-analysis[open] summary::after {
+.result-analysis[open] > summary::after {
   content: "−";
 }
 
-.result-analysis summary span {
+.result-analysis > summary span {
   font-weight: 900;
 }
 
-.result-analysis summary strong {
+.result-analysis > summary strong {
   margin-left: auto;
   color: #526d8e;
   font-size: 0.86rem;
 }
 
-.result-analysis summary:focus-visible {
+.result-analysis > summary:focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: -4px;
 }
@@ -2909,12 +2909,12 @@ blockquote.is-warning {
     min-height: 92px;
   }
 
-  .result-analysis summary {
+  .result-analysis > summary {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .result-analysis summary strong {
+  .result-analysis > summary strong {
     order: 3;
     width: 100%;
     margin: -8px 0 0;
