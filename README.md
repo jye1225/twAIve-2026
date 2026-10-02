@@ -63,8 +63,12 @@ The current learning set covers five topics: deepfakes and portrait rights, AI m
 The learning report uses an explainable rule-based model grounded in the 2026
 `대한민국 인공지능 윤리원칙`. Each choice is rated independently across the
 relevant national principles on a 0-4 behavioral rubric, normalized to a
-0-100 principle score, and accompanied by policy evidence codes. The model is
-implemented in `scoring-engine.js` and validated by `tests/scoring-engine.test.js`.
+0-100 principle score, and accompanied by policy evidence codes. The analysis
+architecture is split into `analysis/principle-scorer.js`,
+`analysis/feature-extractor.js`, `analysis/learner-classifier.js`,
+`analysis/content-recommender.js`, and `analysis/learning-model.js`.
+`scoring-engine.js` remains as a compatibility adapter. The modules are validated
+by `tests/scoring-engine.test.js` and `tests/learning-model.test.js`.
 
 The resulting score is an educational diagnostic, not an official government
 rating, legal judgment, or standardized psychological test. See
@@ -83,6 +87,27 @@ existing Supabase JSON history. The analysis engine derives risk/proactive
 choice rates, dominant decision criteria, before/after change, repeat count,
 and an explainable learner profile. These outputs are educational behavioral
 analytics, not a trained psychological classifier.
+
+## Teacher Dashboard
+
+The teacher dashboard uses the Supabase `get_teacher_dashboard()` security-definer
+function. Only accounts listed in `teacher_accounts` receive anonymous aggregate
+statistics: question risk rates, average before/after change, weakest principles,
+episode completion, and consented training-data readiness. Individual usernames,
+emails, and answers are not returned.
+
+After running the latest `supabase-schema.sql`, edit and run
+`supabase-teacher-dashboard.sql` to authorize one trusted teacher account.
+
+## Data-driven Model Pipeline
+
+`ml/train_models.py` compares Logistic Regression and Decision Tree models using
+consented, expert-labeled user data. It produces accuracy, macro F1,
+cross-validation metrics, a confusion matrix, and the selected model artifact.
+Training is blocked below 100 consented labeled samples or when a class has fewer
+than 10 samples. No synthetic result is presented as a trained model.
+
+See `docs/ARCHITECTURE.md`, `docs/SCORING_MODEL.md`, and `ml/README.md`.
 
 After a learner chooses a story action, the signed-in app asks the same Vercel
 serverless endpoint for exactly three scene-specific reason options. Only the

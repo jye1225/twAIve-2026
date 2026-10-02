@@ -1,0 +1,42 @@
+# 실제 사용자 데이터 기반 분류 모델
+
+이 디렉터리는 규칙 기반 모델을 실제 사용자 데이터 기반 통계 모델로 확장하기 위한 학습 파이프라인이다. 데이터가 부족할 때 생성한 임의 데이터나 규칙 모델의 출력을 정답 라벨로 사용하지 않는다.
+
+## 학습 전 조건
+
+1. 사용자가 마이페이지에서 익명 연구 활용에 동의한다.
+2. 동의한 실제 학습 기록을 100건 이상 수집한다.
+3. 두 명 이상의 전문가가 기록을 독립적으로 평가한다.
+4. 평가자 간 일치도를 확인한 뒤 `expert_label`을 확정한다.
+5. 각 클래스는 최소 10건 이상이어야 한다.
+
+조건을 충족하지 않으면 `train_models.py`는 학습을 중단한다.
+
+## 입력
+
+`data/training-data-template.csv`의 열 구조를 사용한다.
+
+- 7대 윤리원칙 점수
+- 주요 판단 이유
+- 평균 응답 시간
+- 사전·사후 변화
+- 위험·적극 실천 비율
+- 익명 연구 활용 동의
+- 전문가 라벨
+
+이름, 아이디, 이메일, 비밀번호는 학습 데이터에 포함하지 않는다.
+
+## 실행
+
+```powershell
+python -m pip install -r ml/requirements.txt
+python ml/train_models.py ml/data/training-data.csv --output ml/artifacts
+```
+
+## 출력
+
+- `metrics.json`: 두 후보 모델의 정확도, macro F1, 교차검증 평균
+- `confusion_matrix.csv`: 선택된 모델의 혼동행렬
+- `learner_classifier.joblib`: 교차검증 macro F1이 높은 모델
+
+후보 모델은 Logistic Regression과 Decision Tree다. 점수가 더 높더라도 표본 수, 클래스 불균형, 평가자 일치도와 혼동행렬을 함께 검토한 뒤 서비스 적용 여부를 결정한다.

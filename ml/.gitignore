@@ -1,0 +1,5 @@
+artifacts/
+data/*.csv
+!data/training-data-template.csv
+__pycache__/
+*.pyc

@@ -1,5 +1,9 @@
 const assert = require("node:assert/strict");
 const model = require("../learning-model.js");
+const featureExtractor = require("../analysis/feature-extractor.js");
+const principleScorer = require("../analysis/principle-scorer.js");
+const learnerClassifier = require("../analysis/learner-classifier.js");
+const contentRecommender = require("../analysis/content-recommender.js");
 
 const principles = [
   { key: "privacy", name: "프라이버시 보호", score: 45 },
@@ -13,7 +17,7 @@ const history = [
   { rubric: { level: 2 }, reasonCode: "verification", responseTimeMs: 14000 },
 ];
 
-const features = model.extractFeatures(principles, history, {
+const features = featureExtractor.extract(principles, history, {
   pre: { level: 1 },
   post: { level: 3 },
   attemptCount: 2,
@@ -32,8 +36,13 @@ const result = model.analyze(principles, history, {
   post: { level: 3 },
   attemptCount: 2,
 });
-assert.equal(result.version, "1.0.0");
+assert.equal(result.version, "2.0.0");
 assert.equal(result.type, "explainable-rule-based");
+assert.deepEqual(result.modules, {
+  featureExtractor: "1.0.0",
+  learnerClassifier: "1.0.0",
+  contentRecommender: "1.0.0",
+});
 assert.equal(result.profile.key, "rights");
 assert.match(result.profile.rule, /프라이버시 보호 45점/);
 assert.match(result.recommendation.action, /동의/);
@@ -50,4 +59,8 @@ const pending = model.analyze([], [], {});
 assert.equal(pending.profile.key, "pending");
 assert.equal(pending.confidence.band, "낮음");
 
-console.log("PASS: feature extraction, explainable classification, confidence, and recommendations");
+assert.equal(learnerClassifier.classify(features).key, "rights");
+assert.equal(contentRecommender.recommend(features).episodeId, "privacy");
+assert.equal(principleScorer.performanceBand(74), "기준을 이해하는 중");
+
+console.log("PASS: modular feature extraction, scoring, classification, confidence, and recommendation");

@@ -2727,7 +2727,7 @@ blockquote.is-warning {
 
 .analysis-model-result {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3258,6 +3258,175 @@ blockquote.is-warning {
   line-height: 1.65;
 }
 
+/* Teacher analytics and consent controls */
+.bottom-nav.has-teacher {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.profile-form .profile-consent {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #c8d9ef;
+  border-radius: var(--radius-control);
+  color: #405b7c;
+  background: #f7fbff;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.profile-form .profile-consent input {
+  flex: 0 0 auto;
+  width: 18px;
+  min-height: 18px;
+  margin-top: 2px;
+  accent-color: var(--blue);
+}
+
+.teacher-dashboard {
+  display: grid;
+  gap: 14px;
+}
+
+.teacher-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.teacher-kpis article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #c9def6;
+  border-top: 3px solid var(--blue);
+  background: #ffffff;
+}
+
+.teacher-kpis span,
+.dashboard-section-title span {
+  color: #5f7899;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.teacher-kpis strong {
+  color: var(--blue-strong);
+  font-size: 1.45rem;
+}
+
+.teacher-kpis small {
+  color: #6c7e94;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.teacher-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.teacher-dashboard-grid > section {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #dbe9fa;
+  background: #ffffff;
+}
+
+.dashboard-section-title {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.dashboard-section-title strong {
+  color: #172033;
+  font-size: 1rem;
+}
+
+.dashboard-bars {
+  display: grid;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-bars li > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.dashboard-bars strong {
+  min-width: 0;
+  color: #263a54;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.dashboard-bars li > div:first-child span {
+  flex: 0 0 auto;
+  color: #6c7e94;
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.dashboard-bar {
+  height: 7px;
+  overflow: hidden;
+  background: #e6eef8;
+}
+
+.dashboard-bar > span {
+  display: block;
+  width: var(--dashboard-rate);
+  height: 100%;
+  background: var(--blue);
+}
+
+.dashboard-bars.is-principle .dashboard-bar > span,
+.training-readiness .dashboard-bar > span {
+  background: #ef9b0f;
+}
+
+.training-readiness p,
+.dashboard-empty,
+.dashboard-privacy-note {
+  color: #526d8e;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.training-readiness p {
+  margin: 0 0 10px;
+}
+
+.training-readiness small {
+  display: block;
+  margin-top: 8px;
+  color: #7b5b24;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.dashboard-empty,
+.dashboard-privacy-note {
+  margin: 0;
+}
+
+.dashboard-privacy-note {
+  padding: 10px 12px;
+  border-left: 3px solid var(--blue);
+  background: #f3f8ff;
+}
+
 .ai-coach-output section {
   display: grid;
   gap: 8px;
@@ -3333,6 +3502,11 @@ blockquote.is-warning {
 }
 
 @media (max-width: 900px) {
+  .teacher-kpis,
+  .teacher-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .report-summary,
   .snapshot-metrics,
   .ai-coach-heading {
@@ -3345,6 +3519,17 @@ blockquote.is-warning {
 
   .ai-video-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .teacher-kpis,
+  .teacher-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bottom-nav.has-teacher .nav-item {
+    font-size: 0.72rem;
   }
 }
 

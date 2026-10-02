@@ -1082,6 +1082,12 @@ const state = {
   decisionReasonStatus: "idle",
   decisionReasonSource: "",
   sceneStartedAt: null,
+  teacherDashboard: {
+    authorized: false,
+    status: "idle",
+    data: null,
+    error: "",
+  },
 };
 
 const SUPABASE_CONFIG = window.TWAIVE_SUPABASE || {};
@@ -1132,6 +1138,8 @@ const els = {
   resetButton: document.getElementById("resetButton"),
   signupOnlyItems: document.querySelectorAll(".signup-only"),
   loginOnlyItems: document.querySelectorAll(".login-only"),
+  teacherNavButton: document.querySelector(".teacher-nav"),
+  bottomNav: document.querySelector(".bottom-nav"),
 };
 
 function isLoggedIn() {
@@ -1242,6 +1250,7 @@ async function loadSession() {
     }
     await loadProfile();
     await loadAllProgress();
+    await loadTeacherDashboard();
     await loadEpisodeProgress(state.episodeIndex);
     state.view = "home";
     showApp();
@@ -1277,6 +1286,7 @@ async function login(username, password) {
   currentUser = data.user;
   await loadProfile();
   await loadAllProgress();
+  await loadTeacherDashboard();
   await loadEpisodeProgress(state.episodeIndex);
   state.view = "home";
   showApp();
@@ -1294,9 +1304,17 @@ async function loadProfile() {
   try {
     ({ data, error } = await supabaseClient
       .from("profiles")
-      .select("username, auth_email, display_name, created_at")
+      .select("username, auth_email, display_name, created_at, analytics_consent")
       .eq("id", currentUser.id)
       .maybeSingle());
+    if (error && /analytics_consent/i.test(error.message || "")) {
+      ({ data, error } = await supabaseClient
+        .from("profiles")
+        .select("username, auth_email, display_name, created_at")
+        .eq("id", currentUser.id)
+        .maybeSingle());
+      if (data) data.analytics_consent = false;
+    }
   } catch (requestError) {
     showAuthError(supabaseConnectionMessage(requestError));
     state.profile = null;
@@ -1310,6 +1328,57 @@ async function loadProfile() {
   }
 
   state.profile = data;
+  return data;
+}
+
+function setTeacherNavigation(visible) {
+  if (els.teacherNavButton) els.teacherNavButton.hidden = !visible;
+  els.bottomNav?.classList.toggle("has-teacher", visible);
+}
+
+async function loadTeacherDashboard(options = {}) {
+  if (!supabaseClient || !currentUser) {
+    state.teacherDashboard = { authorized: false, status: "idle", data: null, error: "" };
+    setTeacherNavigation(false);
+    return null;
+  }
+
+  state.teacherDashboard.status = "loading";
+  state.teacherDashboard.error = "";
+  if (options.render) render();
+
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabaseClient.rpc("get_teacher_dashboard"));
+  } catch (requestError) {
+    state.teacherDashboard = {
+      authorized: false,
+      status: "error",
+      data: null,
+      error: supabaseConnectionMessage(requestError),
+    };
+    setTeacherNavigation(false);
+    if (options.render) render();
+    return null;
+  }
+
+  if (error) {
+    const unavailable = error.code === "42501" || /teacher access required|permission denied/i.test(error.message || "");
+    state.teacherDashboard = {
+      authorized: false,
+      status: unavailable ? "forbidden" : "error",
+      data: null,
+      error: unavailable ? "" : `교수자 통계를 불러오지 못했습니다: ${error.message}`,
+    };
+    setTeacherNavigation(false);
+    if (options.render) render();
+    return null;
+  }
+
+  state.teacherDashboard = { authorized: true, status: "ready", data, error: "" };
+  setTeacherNavigation(true);
+  if (options.render) render();
   return data;
 }
 
@@ -1461,7 +1530,7 @@ async function saveProfile(user, username, displayName) {
   }
 }
 
-async function updateDisplayName(displayName) {
+async function updateProfileSettings(displayName, analyticsConsent) {
   if (!supabaseClient || !currentUser) {
     state.feedback = "로그인이 필요합니다.";
     render();
@@ -1476,11 +1545,19 @@ async function updateDisplayName(displayName) {
   }
 
   let error;
+  let consentSaved = true;
   try {
     ({ error } = await supabaseClient
       .from("profiles")
-      .update({ display_name: nextName })
+      .update({ display_name: nextName, analytics_consent: Boolean(analyticsConsent) })
       .eq("id", currentUser.id));
+    if (error && /analytics_consent/i.test(error.message || "")) {
+      consentSaved = false;
+      ({ error } = await supabaseClient
+        .from("profiles")
+        .update({ display_name: nextName })
+        .eq("id", currentUser.id));
+    }
   } catch (requestError) {
     state.feedback = supabaseConnectionMessage(requestError);
     render();
@@ -1501,7 +1578,9 @@ async function updateDisplayName(displayName) {
   });
 
   await loadProfile();
-  state.feedback = "프로필이 수정되었습니다.";
+  state.feedback = consentSaved
+    ? "프로필과 연구 데이터 동의 설정이 수정되었습니다."
+    : "이름은 저장했지만 연구 동의 저장에는 최신 Supabase SQL 설정이 필요합니다.";
   showApp();
   render();
 }
@@ -1513,6 +1592,8 @@ async function logout() {
   currentUser = null;
   state.profile = null;
   state.progress = {};
+  state.teacherDashboard = { authorized: false, status: "idle", data: null, error: "" };
+  setTeacherNavigation(false);
   showLogin();
 }
 
@@ -1646,9 +1727,13 @@ function assessmentChangeHtml(response) {
 function currentLearningAnalysis() {
   const principles = guidelineScoreItems();
   const assessment = activeAssessmentResponse();
-  const analysis = ScoringEngine.analyzeLearning(principles, state.history, assessment);
-  const model = LearningModel.analyze(principles, state.history, assessment);
-  return { ...analysis, profile: model.profile, model };
+  const model = LearningModel.analyze(principles, state.history, assessment, {
+    currentEpisodeId: activeEpisode().id,
+    completedEpisodeIds: Object.values(state.progress)
+      .filter((progress) => progress?.completed)
+      .map((progress) => progress.episode_id),
+  });
+  return { ...model.features, profile: model.profile, confidence: model.confidence.band, model };
 }
 
 function overallLearningAnalysis() {
@@ -1676,9 +1761,12 @@ function overallLearningAnalysis() {
   );
 
   const assessment = { attemptCount };
-  const analysis = ScoringEngine.analyzeLearning(principleItems, history, assessment);
-  const model = LearningModel.analyze(principleItems, history, assessment);
-  return { ...analysis, profile: model.profile, model };
+  const model = LearningModel.analyze(principleItems, history, assessment, {
+    completedEpisodeIds: Object.values(state.progress)
+      .filter((progress) => progress?.completed)
+      .map((progress) => progress.episode_id),
+  });
+  return { ...model.features, profile: model.profile, confidence: model.confidence.band, model };
 }
 
 function percentLabel(rate) {
@@ -1720,11 +1808,12 @@ function learnerAnalysisHtml(analysis, options = {}) {
       <div class="analysis-model-result">
         <p><span>분류 근거</span><strong>${escapeHtml(model.profile.rule)}</strong></p>
         <p><span>맞춤 행동</span><strong>${escapeHtml(model.recommendation.action)}</strong></p>
+        <p><span>추천 콘텐츠</span><strong>${escapeHtml(model.recommendation.episodeTitle || "현재 에피소드 다시보기")}</strong></p>
       </div>
       <details class="analysis-model-details">
         <summary>분석 모델이 판단한 과정</summary>
         <ol>${model.trace.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
-        <p>모델 v${escapeHtml(model.version)} · 설명 가능한 규칙 기반 · 데이터 신뢰도 ${escapeHtml(model.confidence.band)} ${model.confidence.score}%</p>
+        <p>모델 v${escapeHtml(model.version)} · 특징 추출 ${escapeHtml(model.modules.featureExtractor)} · 유형 분류 ${escapeHtml(model.modules.learnerClassifier)} · 추천 ${escapeHtml(model.modules.contentRecommender)} · 데이터 신뢰도 ${escapeHtml(model.confidence.band)} ${model.confidence.score}%</p>
       </details>
     `
     : "";
@@ -2813,15 +2902,32 @@ function renderChoices(scene) {
         <span>가입일</span>
         <input type="text" value="${escapeAttribute(formatProfileDate(profile.created_at))}" readonly />
       </label>
+      <label class="profile-consent">
+        <input id="analyticsConsentInput" type="checkbox" ${profile.analytics_consent ? "checked" : ""} />
+        <span>익명화된 선택 기록을 졸업 연구의 모델 검증에 활용하는 데 동의해요.</span>
+      </label>
       <button class="choice-button is-primary profile-save" type="submit">
         <strong>저장</strong>프로필 수정
       </button>
     `;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      updateDisplayName(form.querySelector("#profileNameInput").value);
+      updateProfileSettings(
+        form.querySelector("#profileNameInput").value,
+        form.querySelector("#analyticsConsentInput").checked,
+      );
     });
     els.choices.appendChild(form);
+    return;
+  }
+
+  if (state.view === "teacher") {
+    const refresh = document.createElement("button");
+    refresh.type = "button";
+    refresh.className = "choice-button is-primary";
+    refresh.innerHTML = "<strong>새로고침</strong>최신 익명 통계 다시 집계";
+    refresh.addEventListener("click", () => loadTeacherDashboard({ render: true }));
+    els.choices.appendChild(refresh);
     return;
   }
 
@@ -2932,6 +3038,107 @@ function learningHtml(id) {
   `;
 }
 
+function dashboardPercent(value) {
+  const number = Math.min(100, Math.max(0, Number(value) || 0));
+  return `${Math.round(number * 10) / 10}%`;
+}
+
+function dashboardBarRow(label, value, meta = "") {
+  const rate = Math.min(100, Math.max(0, Number(value) || 0));
+  return `
+    <li>
+      <div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(meta || dashboardPercent(rate))}</span></div>
+      <div class="dashboard-bar" aria-label="${escapeAttribute(label)} ${dashboardPercent(rate)}">
+        <span style="--dashboard-rate:${rate}%"></span>
+      </div>
+    </li>
+  `;
+}
+
+function teacherDashboardHtml() {
+  const dashboard = state.teacherDashboard;
+  if (dashboard.status === "loading") {
+    return `<div class="empty-state"><strong>익명 학습 통계를 집계하고 있어요</strong><p>선택 기록과 사전·사후 변화를 계산하는 중입니다.</p></div>`;
+  }
+  if (!dashboard.authorized || !dashboard.data) {
+    return `<div class="empty-state"><strong>교수자 통계를 불러올 수 없어요</strong><p>${escapeHtml(dashboard.error || "교수자로 등록된 계정에서만 확인할 수 있습니다.")}</p></div>`;
+  }
+
+  const data = dashboard.data;
+  const activeLearners = Number(data.activeLearners || 0);
+  const consentingLearners = Number(data.consentingLearners || 0);
+  const consentingRecords = Number(data.consentingRecords || 0);
+  const averageDelta = data.averageReflectionDelta === null || data.averageReflectionDelta === undefined
+    ? "-"
+    : `${Number(data.averageReflectionDelta) > 0 ? "+" : ""}${Number(data.averageReflectionDelta).toFixed(1)}단계`;
+  const minimumSamples = Number(data.minimumTrainingSamples || 100);
+  const trainingReadiness = Math.min(100, (consentingRecords / minimumSamples) * 100);
+  const weakestRows = (data.weakestPrinciples || [])
+    .slice(0, 7)
+    .map((item) => dashboardBarRow(
+      GUIDELINE_PRINCIPLES[item.key]?.name || item.key,
+      item.score,
+      `${Math.round(Number(item.score || 0))}점 · ${item.samples}건`,
+    ))
+    .join("");
+  const questionRows = (data.questionRiskRates || [])
+    .slice(0, 8)
+    .map((item) => {
+      const episode = episodes.find((candidate) => candidate.id === item.episodeId);
+      return dashboardBarRow(
+        item.scene,
+        item.riskRate,
+        `${episode?.title || item.episodeId} · 위험 ${item.riskCount}/${item.responses}`,
+      );
+    })
+    .join("");
+  const completionRows = (data.episodeCompletion || [])
+    .map((item) => {
+      const episode = episodes.find((candidate) => candidate.id === item.episodeId);
+      return dashboardBarRow(
+        episode?.title || item.episodeId,
+        item.completionRate,
+        `${item.completedLearners}/${activeLearners}명 완료`,
+      );
+    })
+    .join("");
+
+  return `
+    <section class="teacher-dashboard" aria-label="교수자용 익명 학습 분석">
+      <div class="teacher-kpis">
+        <article><span>학습 참여자</span><strong>${activeLearners}명</strong><small>한 번 이상 기록한 계정</small></article>
+        <article><span>전체 완료율</span><strong>${dashboardPercent(data.completionRate)}</strong><small>${data.completedEpisodes}/${data.expectedCompletions}개 완료</small></article>
+        <article><span>평균 생각 변화</span><strong>${averageDelta}</strong><small>사후 단계 - 사전 단계</small></article>
+        <article><span>연구 활용 동의</span><strong>${consentingLearners}명</strong><small>${consentingRecords}개 학습 기록</small></article>
+      </div>
+
+      <div class="teacher-dashboard-grid">
+        <section>
+          <div class="dashboard-section-title"><span>문항 분석</span><strong>질문별 위험 선택 비율</strong></div>
+          ${questionRows ? `<ol class="dashboard-bars">${questionRows}</ol>` : `<p class="dashboard-empty">아직 선택 데이터가 없습니다.</p>`}
+        </section>
+        <section>
+          <div class="dashboard-section-title"><span>원칙 분석</span><strong>가장 취약한 윤리원칙</strong></div>
+          ${weakestRows ? `<ol class="dashboard-bars is-principle">${weakestRows}</ol>` : `<p class="dashboard-empty">아직 원칙별 점수가 없습니다.</p>`}
+        </section>
+        <section>
+          <div class="dashboard-section-title"><span>진행 분석</span><strong>에피소드 완료율</strong></div>
+          ${completionRows ? `<ol class="dashboard-bars">${completionRows}</ol>` : `<p class="dashboard-empty">아직 완료 기록이 없습니다.</p>`}
+        </section>
+        <section class="training-readiness">
+          <div class="dashboard-section-title"><span>모델 검증</span><strong>실제 데이터 준비도</strong></div>
+          <p><b>${consentingRecords}/${minimumSamples}건</b> · 동의한 실제 기록이 최소 기준에 도달해야 통계 모델을 학습합니다.</p>
+          <div class="dashboard-bar" aria-label="모델 학습 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
+            <span style="--dashboard-rate:${trainingReadiness}%"></span>
+          </div>
+          <small>기준 미달일 때는 Decision Tree나 Logistic Regression 결과를 만들지 않습니다.</small>
+        </section>
+      </div>
+      <p class="dashboard-privacy-note">사용자 이름과 개별 답변은 표시하지 않고 서버에서 집계된 통계만 제공합니다. 마지막 집계 ${escapeHtml(formatProfileDate(data.generatedAt))}</p>
+    </section>
+  `;
+}
+
 function profileHtml(profile) {
   return `
     <div class="profile-summary">
@@ -2947,6 +3154,10 @@ function profileHtml(profile) {
         <span>가입일</span>
         <strong>${escapeHtml(formatProfileDate(profile.created_at))}</strong>
       </article>
+      <article>
+        <span>익명 연구 활용</span>
+        <strong>${profile.analytics_consent ? "동의" : "미동의"}</strong>
+      </article>
     </div>
     ${learnerAnalysisHtml(overallLearningAnalysis(), { detailed: true })}
   `;
@@ -2959,7 +3170,7 @@ function render() {
   const isAssessment = state.view === "story" && ["pre", "post", "reason"].includes(state.storyMode);
   const isReport = state.view === "story" && state.storyMode === "report";
   const isScene = state.view === "story" && state.storyMode === "story";
-  const isSupport = ["record", "learn", "profile"].includes(state.view);
+  const isSupport = ["record", "learn", "profile", "teacher"].includes(state.view);
   els.storyStage.classList.toggle("is-home-stage", state.view === "home");
   els.storyStage.classList.toggle("is-assessment-stage", isAssessment);
   els.storyStage.classList.toggle("is-report-stage", isReport);
@@ -2967,7 +3178,7 @@ function render() {
   els.storyStage.classList.toggle("is-support-stage", isSupport);
   els.choiceDock.classList.toggle("is-home-dock", state.view === "home");
   els.choiceDock.classList.toggle("is-assessment-dock", isAssessment);
-  els.feedbackBox.classList.toggle("is-summary", state.view === "home" || state.view === "profile");
+  els.feedbackBox.classList.toggle("is-summary", ["home", "profile", "teacher"].includes(state.view));
   els.feedbackBox.classList.remove("is-pre-answer");
   els.quoteText.classList.toggle("is-warning", isAssessment);
   els.topicLabel.textContent = episode.topic;
@@ -3011,6 +3222,12 @@ function render() {
     els.feedbackBox.innerHTML = state.feedback
       ? escapeHtml(state.feedback)
       : progressSummaryHtml();
+  } else if (state.view === "teacher") {
+    els.chapterLine.textContent = "Analytics";
+    els.sceneTitle.textContent = "교수자 대시보드";
+    els.sceneText.innerHTML = teacherDashboardHtml();
+    els.quoteText.textContent = "학생 개인정보 대신 익명 집계 통계로 수업의 취약 지점을 확인합니다.";
+    els.feedbackBox.textContent = "위험 선택 비율 · 사전/사후 변화 · 취약 원칙 · 완료율";
   } else if (state.view === "story" && state.storyMode === "pre") {
     els.chapterLine.textContent = "Before";
     els.sceneTitle.textContent = "사전 질문";

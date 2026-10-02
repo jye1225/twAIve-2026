@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twAIve - AI 윤리 스토리 게임</title>
-    <link rel="stylesheet" href="styles.css?v=20261002-2" />
+    <link rel="stylesheet" href="styles.css?v=20261002-3" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="로그인">
@@ -151,14 +151,19 @@
           <button type="button" class="nav-item" data-view="record">기록</button>
           <button type="button" class="nav-item" data-view="learn">학습</button>
           <button type="button" class="nav-item" data-view="profile">마이페이지</button>
+          <button type="button" class="nav-item teacher-nav" data-view="teacher" hidden>교수자</button>
         </nav>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260630-1"></script>
-    <script src="learning-model.js?v=20261002-1"></script>
-    <script src="scoring-engine.js?v=20261001-3"></script>
+    <script src="analysis/feature-extractor.js?v=20261002-1"></script>
+    <script src="analysis/principle-scorer.js?v=20261002-1"></script>
+    <script src="analysis/learner-classifier.js?v=20261002-1"></script>
+    <script src="analysis/content-recommender.js?v=20261002-1"></script>
+    <script src="analysis/learning-model.js?v=20261002-1"></script>
+    <script src="scoring-engine.js?v=20261002-1"></script>
     <script src="app.js?v=20261002-1"></script>
   </body>
 </html>
