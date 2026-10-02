@@ -12,6 +12,7 @@ assert.match(schema, /'averageReflectionDelta'/);
 assert.match(schema, /'weakestPrinciples'/);
 assert.match(schema, /'episodeCompletion'/);
 assert.match(schema, /'consentingRecords'/);
+assert.match(schema, /score_entry\.key in \([\s\S]*'humanCenteredness'[\s\S]*'transparency'[\s\S]*\)/);
 assert.doesNotMatch(schema, /'username'\s*,|'authEmail'\s*,|'displayName'\s*,/i);
 
 console.log("Teacher dashboard SQL checks passed.");

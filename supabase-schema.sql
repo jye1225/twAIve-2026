@@ -232,7 +232,16 @@ begin
           count(*) as sample_count
         from public.user_episode_progress progress
         cross join lateral jsonb_each_text(coalesce(progress.scores, '{}'::jsonb)) score_entry
-        where score_entry.key <> '_version' and score_entry.value ~ '^([0-9]|[1-9][0-9]|100)(\.[0-9]+)?$'
+        where score_entry.key in (
+          'humanCenteredness',
+          'privacy',
+          'fairness',
+          'responsibility',
+          'safety',
+          'reliability',
+          'transparency'
+        )
+          and score_entry.value ~ '^([0-9]|[1-9][0-9]|100)(\.[0-9]+)?$'
         group by score_entry.key
         order by average_score asc
       ) principle_summary
