@@ -1060,9 +1060,10 @@ const GUIDELINE_RUBRICS = {
 };
 
 const ScoringEngine = window.TWAIVE_SCORING;
+const LearningModel = window.TWAIVE_LEARNING_MODEL;
 
-if (!ScoringEngine) {
-  throw new Error("점수 계산 엔진을 불러오지 못했습니다.");
+if (!ScoringEngine || !LearningModel) {
+  throw new Error("점수 계산 또는 학습 분석 모델을 불러오지 못했습니다.");
 }
 
 const state = {
@@ -1643,11 +1644,11 @@ function assessmentChangeHtml(response) {
 }
 
 function currentLearningAnalysis() {
-  return ScoringEngine.analyzeLearning(
-    guidelineScoreItems(),
-    state.history,
-    activeAssessmentResponse(),
-  );
+  const principles = guidelineScoreItems();
+  const assessment = activeAssessmentResponse();
+  const analysis = ScoringEngine.analyzeLearning(principles, state.history, assessment);
+  const model = LearningModel.analyze(principles, state.history, assessment);
+  return { ...analysis, profile: model.profile, model };
 }
 
 function overallLearningAnalysis() {
@@ -1674,7 +1675,10 @@ function overallLearningAnalysis() {
     0,
   );
 
-  return ScoringEngine.analyzeLearning(principleItems, history, { attemptCount });
+  const assessment = { attemptCount };
+  const analysis = ScoringEngine.analyzeLearning(principleItems, history, assessment);
+  const model = LearningModel.analyze(principleItems, history, assessment);
+  return { ...analysis, profile: model.profile, model };
 }
 
 function percentLabel(rate) {
@@ -1710,6 +1714,20 @@ function learnerAnalysisHtml(analysis, options = {}) {
         )
         .join("")
     : "";
+  const model = analysis.model;
+  const modelDetails = model
+    ? `
+      <div class="analysis-model-result">
+        <p><span>분류 근거</span><strong>${escapeHtml(model.profile.rule)}</strong></p>
+        <p><span>맞춤 행동</span><strong>${escapeHtml(model.recommendation.action)}</strong></p>
+      </div>
+      <details class="analysis-model-details">
+        <summary>분석 모델이 판단한 과정</summary>
+        <ol>${model.trace.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+        <p>모델 v${escapeHtml(model.version)} · 설명 가능한 규칙 기반 · 데이터 신뢰도 ${escapeHtml(model.confidence.band)} ${model.confidence.score}%</p>
+      </details>
+    `
+    : "";
 
   return `
     <section class="learning-analysis" aria-label="선택 데이터 분석">
@@ -1726,7 +1744,8 @@ function learnerAnalysisHtml(analysis, options = {}) {
       </div>
       <p class="analysis-reason"><span>가장 많이 기록한 판단 기준</span><strong>${escapeHtml(analysis.dominantReason?.label || "아직 기록 없음")}</strong></p>
       ${reasonRows ? `<ul class="reason-distribution">${reasonRows}</ul>` : ""}
-      <p class="analysis-note">데이터 충분도 ${escapeHtml(analysis.confidence)} · ${analysis.attemptCount}회차 기록 · 교육용 규칙 기반 분석이며 심리검사가 아닙니다.</p>
+      ${modelDetails}
+      <p class="analysis-note">데이터 신뢰도 ${escapeHtml(model?.confidence.band || analysis.confidence)} · ${analysis.attemptCount}회차 기록 · 교육용 규칙 기반 분석이며 심리검사가 아닙니다.</p>
     </section>
   `;
 }

@@ -3,6 +3,7 @@ const fs = require("fs");
 const vm = require("vm");
 
 const engine = require("../scoring-engine.js");
+const learningModel = require("../learning-model.js");
 
 const levelDefinitions = {
   0: { label: "위반" },
@@ -88,7 +89,7 @@ assert.strictEqual(analysis.attemptCount, 2);
 
 const source = fs.readFileSync("app.js", "utf8");
 const prefix = source.slice(0, source.indexOf("const state ="));
-const context = { window: { TWAIVE_SCORING: engine } };
+const context = { window: { TWAIVE_SCORING: engine, TWAIVE_LEARNING_MODEL: learningModel } };
 vm.createContext(context);
 vm.runInContext(
   `${prefix}\nthis.__episodes = episodes; this.__rubrics = GUIDELINE_RUBRICS; this.__principles = GUIDELINE_PRINCIPLES;`,
