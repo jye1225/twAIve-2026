@@ -6554,6 +6554,96 @@ body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row input {
   background: rgba(255, 255, 255, 0.07);
 }
 
+body.is-visual-novel .story-stage.is-report-detail .ai-coach {
+  --ai-copy: #e8dce5;
+  --ai-emphasis: #fff5fc;
+  --ai-accent: #f4acd9;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-heading > div > span {
+  color: var(--ai-accent);
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row input {
+  font-size: 14px;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row input::placeholder {
+  color: #cbbbc8;
+  opacity: 1;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-output {
+  gap: 12px;
+  border-color: rgba(255, 165, 221, 0.24);
+  color: var(--ai-copy);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-summary {
+  color: var(--ai-emphasis);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.65;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-answer,
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-output ul {
+  color: var(--ai-copy);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-output h5 {
+  color: var(--ai-accent);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-notice {
+  border-color: #aa824b;
+  color: #ffe0a6;
+  background: #302216;
+  font-size: 12px;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-output.is-error {
+  color: #ffc1c9;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-output.is-error > * {
+  color: inherit;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-video-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-video-grid a {
+  border-color: rgba(255, 165, 221, 0.24);
+  color: var(--ai-emphasis);
+  background: #261b2d;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-video-grid strong {
+  color: var(--ai-emphasis);
+  font-size: 14px;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-video-grid small {
+  color: var(--ai-copy);
+  font-size: 12px;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-video-search {
+  max-width: 100%;
+  color: var(--ai-accent);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  text-underline-offset: 3px;
+}
+
 body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row button {
   width: 42px;
   min-width: 42px;

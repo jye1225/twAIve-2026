@@ -3,6 +3,11 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const source = fs.readFileSync("js/app.js", "utf8");
+const css = fs.readFileSync("css/styles.css", "utf8");
+assert.match(css, /\.ai-coach-output\s*\{[^}]*color: var\(--ai-copy\);[^}]*font-size: 14px;/);
+assert.match(css, /\.ai-explanation-summary\s*\{[^}]*color: var\(--ai-emphasis\);[^}]*font-size: 15px;/);
+assert.match(css, /\.ai-coach-input-row input\s*\{\s*font-size: 14px;/);
+assert.match(css, /\.ai-coach-output h5\s*\{[^}]*color: var\(--ai-accent\);/);
 const episodes = [{ id: "deepfake" }, { id: "rumor" }];
 const state = { episodeIndex: 0, view: "story", storyMode: "report", reportTab: "analysis" };
 const buttons = [];
