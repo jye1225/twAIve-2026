@@ -3,6 +3,10 @@ const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_QUESTION_LENGTH = 240;
 const MAX_CHOICES = 12;
 const REASON_CODES = ["rights", "verification", "action", "convenience", "social", "uncertain"];
+const ALLOWED_ORIGINS = new Set([
+  "https://kindarabbit.github.io",
+  "https://twaive-2026.vercel.app",
+]);
 const videoCache = new Map();
 
 class ApiError extends Error {
@@ -11,6 +15,16 @@ class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+function applyCorsHeaders(req, res) {
+  const origin = req.headers?.origin;
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return;
+
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Vary", "Origin");
 }
 
 function cleanText(value, maxLength = 300) {
@@ -489,9 +503,14 @@ async function searchYouTubeVideos(query) {
 
 async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  applyCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
 
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "POST, OPTIONS");
     return res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "POST 요청만 지원합니다." });
   }
 
@@ -535,6 +554,7 @@ async function handler(req, res) {
 
 module.exports = handler;
 module.exports.__test = {
+  applyCorsHeaders,
   cleanText,
   decodeHtmlEntities,
   explanationSchema,

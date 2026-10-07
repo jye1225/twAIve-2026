@@ -143,3 +143,7 @@ Never put the OpenAI or YouTube secret key in `js/config/supabase-config.js` or 
 browser-delivered file. Opening `index.html` directly or serving it with a basic
 static server does not execute `/api/explain-result`; use a Vercel deployment or
 Vercel's local development runtime for the AI tutor.
+
+The GitHub Pages build sends AI tutor requests to the Vercel serverless endpoint.
+The endpoint only permits browser requests from `https://kindarabbit.github.io`
+and the production Vercel origin.

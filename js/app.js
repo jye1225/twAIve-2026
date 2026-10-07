@@ -1122,6 +1122,9 @@ const isSupabaseConfigured =
 const supabaseClient = isSupabaseConfigured
   ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
   : null;
+const AI_EXPLANATION_API_URL = window.location.hostname === "kindarabbit.github.io"
+  ? "https://twaive-2026.vercel.app/api/explain-result"
+  : "/api/explain-result";
 
 let authMode = "login";
 let currentUser = null;
@@ -2251,7 +2254,7 @@ async function requestAiExplanation(event) {
       throw new Error("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
     }
 
-    const response = await fetch("/api/explain-result", {
+    const response = await fetch(AI_EXPLANATION_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${data.session.access_token}`,
@@ -2887,7 +2890,7 @@ async function fetchDecisionReasons(decision) {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch("/api/explain-result", {
+    const response = await fetch(AI_EXPLANATION_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${data.session.access_token}`,

@@ -114,4 +114,19 @@ assert.equal(fallback.scoreReasons.length, 3);
 assert.equal(fallback.nextActions.length, 2);
 assert.match(fallback.videoSearchQuery, /AI 윤리 교육/);
 
+const corsHeaders = new Map();
+__test.applyCorsHeaders(
+  { headers: { origin: "https://kindarabbit.github.io" } },
+  { setHeader: (name, value) => corsHeaders.set(name, value) },
+);
+assert.equal(corsHeaders.get("Access-Control-Allow-Origin"), "https://kindarabbit.github.io");
+assert.equal(corsHeaders.get("Access-Control-Allow-Methods"), "POST, OPTIONS");
+
+const rejectedHeaders = new Map();
+__test.applyCorsHeaders(
+  { headers: { origin: "https://example.com" } },
+  { setHeader: (name, value) => rejectedHeaders.set(name, value) },
+);
+assert.equal(rejectedHeaders.size, 0);
+
 console.log("PASS: AI result/reason payload validation, limits, schemas, entity decoding, and response parsing");
