@@ -2,9 +2,9 @@ const assert = require("assert");
 const fs = require("fs");
 const vm = require("vm");
 
-const engine = require("../scoring-engine.js");
-const learningModel = require("../learning-model.js");
-const demoAnalytics = require("../analysis/demo-analytics.js");
+const engine = require("../js/scoring-engine.js");
+const learningModel = require("../js/learning-model.js");
+const demoAnalytics = require("../js/analysis/demo-analytics.js");
 
 const levelDefinitions = {
   0: { label: "위반" },
@@ -88,7 +88,7 @@ assert.strictEqual(analysis.dominantReason.code, "rights");
 assert.strictEqual(analysis.reflectionDelta, 3);
 assert.strictEqual(analysis.attemptCount, 2);
 
-const source = fs.readFileSync("app.js", "utf8");
+const source = fs.readFileSync("js/app.js", "utf8");
 const prefix = source.slice(0, source.indexOf("const state ="));
 const context = {
   window: {

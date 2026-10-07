@@ -3,7 +3,7 @@
 # goaljaby (골잡이)
 
 <p align="center">
-  <img src="assets/goaljaby-hero-01.png" alt="goaljaby" width="320">
+  <img src="../../assets/images/goaljaby-hero-01.png" alt="goaljaby" width="320">
 </p>
 
 > **Claude Code용 PRD→/goal 브릿지 — 명세를 검증·복구 가능한 실행형 골로 바꿔준다.**

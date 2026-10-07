@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twAIve - AI 윤리 스토리 게임</title>
-    <link rel="stylesheet" href="styles.css?v=20261002-4" />
+    <link rel="stylesheet" href="css/styles.css?v=20261007-6" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="로그인">
@@ -97,7 +97,7 @@
     </section>
 
     <main class="app-shell">
-      <section class="play-surface" aria-label="AI 윤리 스토리 게임">
+      <section class="play-surface game-screen" aria-label="AI 윤리 스토리 게임">
         <header class="topbar">
           <button class="icon-button" id="resetButton" type="button" aria-label="처음으로">
             <span aria-hidden="true">↺</span>
@@ -120,9 +120,9 @@
 
         <div class="episode-tabs" id="episodeTabs" aria-label="에피소드 선택"></div>
 
-        <section class="story-stage">
-          <div class="scene-art" aria-hidden="true">
-            <img src="assets/character-sheet.png" alt="" />
+        <section class="story-stage" data-expression="neutral">
+          <div class="scene-art story-background" aria-hidden="true">
+            <img id="sceneArtwork" src="assets/episodes/episode-deepfake.png" alt="" />
             <div class="scene-shade"></div>
           </div>
 
@@ -151,21 +151,21 @@
           <button type="button" class="nav-item" data-view="record">기록</button>
           <button type="button" class="nav-item" data-view="learn">학습</button>
           <button type="button" class="nav-item" data-view="profile">마이페이지</button>
-          <button type="button" class="nav-item teacher-nav" data-view="teacher" hidden>교수자</button>
+          <button type="button" class="teacher-return-button" id="teacherReturnButton">마이페이지로 돌아가기</button>
         </nav>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js?v=20260630-1"></script>
-    <script src="analysis/feature-extractor.js?v=20261002-1"></script>
-    <script src="analysis/principle-scorer.js?v=20261002-1"></script>
-    <script src="analysis/learner-classifier.js?v=20261002-1"></script>
-    <script src="analysis/content-recommender.js?v=20261002-1"></script>
-    <script src="analysis/teaching-strategy.js?v=20261002-1"></script>
-    <script src="analysis/learning-model.js?v=20261002-1"></script>
-    <script src="analysis/demo-analytics.js?v=20261002-1"></script>
-    <script src="scoring-engine.js?v=20261002-1"></script>
-    <script src="app.js?v=20261002-2"></script>
+    <script src="js/config/supabase-config.js?v=20260630-1"></script>
+    <script src="js/analysis/feature-extractor.js?v=20261002-1"></script>
+    <script src="js/analysis/principle-scorer.js?v=20261002-1"></script>
+    <script src="js/analysis/learner-classifier.js?v=20261002-1"></script>
+    <script src="js/analysis/content-recommender.js?v=20261002-1"></script>
+    <script src="js/analysis/teaching-strategy.js?v=20261002-1"></script>
+    <script src="js/analysis/learning-model.js?v=20261002-1"></script>
+    <script src="js/analysis/demo-analytics.js?v=20261002-1"></script>
+    <script src="js/scoring-engine.js?v=20261002-1"></script>
+    <script src="js/app.js?v=20261007-6"></script>
   </body>
 </html>

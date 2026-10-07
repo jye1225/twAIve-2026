@@ -25,13 +25,13 @@ flowchart LR
 
 | 모듈 | 파일 | 입력 | 출력 |
 |---|---|---|---|
-| 원칙 점수 계산 | `analysis/principle-scorer.js` | 선택별 0-4 루브릭 | 7대 원칙별 0-100 점수 |
-| 특징 추출 | `analysis/feature-extractor.js` | 점수, 판단 이유, 응답 시간, 사전·사후 응답 | 취약 원칙, 위험률, 적극 실천률, 이유 분포, 평균 응답 시간 |
-| 학습자 유형 분류 | `analysis/learner-classifier.js` | 특징 벡터 | 학습자 유형, 분류 규칙, 데이터 신뢰도 |
-| 콘텐츠 추천 | `analysis/content-recommender.js` | 취약 원칙, 완료 기록 | 다음 에피소드와 실천 행동 |
-| 지도 방법 추천 | `analysis/teaching-strategy.js` | 집단별 취약 원칙 | 교수자용 수업 활동과 관찰 기준 |
-| 통합 모델 | `analysis/learning-model.js` | 위 네 모듈의 결과 | 학생용 분석 결과와 판단 추적 정보 |
-| 호환 어댑터 | `scoring-engine.js` | 기존 앱 호출 | 기존 API를 유지한 모듈 호출 결과 |
+| 원칙 점수 계산 | `js/analysis/principle-scorer.js` | 선택별 0-4 루브릭 | 7대 원칙별 0-100 점수 |
+| 특징 추출 | `js/analysis/feature-extractor.js` | 점수, 판단 이유, 응답 시간, 사전·사후 응답 | 취약 원칙, 위험률, 적극 실천률, 이유 분포, 평균 응답 시간 |
+| 학습자 유형 분류 | `js/analysis/learner-classifier.js` | 특징 벡터 | 학습자 유형, 분류 규칙, 데이터 신뢰도 |
+| 콘텐츠 추천 | `js/analysis/content-recommender.js` | 취약 원칙, 완료 기록 | 다음 에피소드와 실천 행동 |
+| 지도 방법 추천 | `js/analysis/teaching-strategy.js` | 집단별 취약 원칙 | 교수자용 수업 활동과 관찰 기준 |
+| 통합 모델 | `js/analysis/learning-model.js` | 위 네 모듈의 결과 | 학생용 분석 결과와 판단 추적 정보 |
+| 호환 어댑터 | `js/scoring-engine.js` | 기존 앱 호출 | 기존 API를 유지한 모듈 호출 결과 |
 
 ## 교수자 대시보드 보안
 
@@ -44,7 +44,7 @@ flowchart LR
 - 익명 연구 활용 동의 인원, 분석 조건 충족 기록 수와 군집분석 준비도
 - 취약 원칙에 대응하는 수업 활동과 관찰 기준
 
-교수자 화면에는 별도의 **시연용 합성 데이터** 전환 기능이 있다. 합성 데이터는 `analysis/demo-analytics.js`가 고정 난수로 브라우저 안에서 생성하며 Supabase, 실제 사용자 통계, 연구 활용 동의 수, 머신러닝 학습 데이터에 저장하거나 합산하지 않는다.
+교수자 화면에는 별도의 **시연용 합성 데이터** 전환 기능이 있다. 합성 데이터는 `js/analysis/demo-analytics.js`가 고정 난수로 브라우저 안에서 생성하며 Supabase, 실제 사용자 통계, 연구 활용 동의 수, 머신러닝 학습 데이터에 저장하거나 합산하지 않는다.
 
 ## 학습 패턴 군집분석 조건
 

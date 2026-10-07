@@ -113,6 +113,22 @@ const DECISION_REASONS = [
 
 const DECISION_REASON_CODES = new Set(DECISION_REASONS.map((reason) => reason.code));
 const decisionReasonCache = new Map();
+const APP_ROOT_URL =
+  typeof URL === "function" && typeof document !== "undefined"
+    ? new URL("../", document.currentScript?.src || new URL("js/app.js", document.baseURI))
+    : null;
+const episodeArtworkUrl = (filename) =>
+  APP_ROOT_URL ? new URL(`assets/episodes/${filename}`, APP_ROOT_URL).href : `assets/episodes/${filename}`;
+const EPISODE_VISUALS = Object.freeze({
+  deepfake: episodeArtworkUrl("episode-deepfake.png"),
+  rumor: episodeArtworkUrl("episode-rumor.png"),
+  chatbot: episodeArtworkUrl("episode-chatbot.png"),
+  assignment: episodeArtworkUrl("episode-assignment.png"),
+  privacy: episodeArtworkUrl("episode-privacy.png"),
+});
+const EPISODE_INTRO_DURATION = 1900;
+let episodeIntroTimer = null;
+let episodeSaveQueue = Promise.resolve();
 
 const episodes = [
   {
@@ -1073,9 +1089,13 @@ const state = {
   sceneId: episodes[0].start,
   scores: {},
   history: [],
+  recordEpisodeId: episodes[0].id,
+  learningEpisodeId: episodes[0].id,
   feedback: "",
   view: "home",
-  storyMode: "pre",
+  storyMode: "intro",
+  reportTab: "summary",
+  introNextMode: "pre",
   assessments: {},
   progress: {},
   profile: null,
@@ -1126,6 +1146,7 @@ const els = {
   logoutButton: document.getElementById("logoutButton"),
   episodeTabs: document.getElementById("episodeTabs"),
   storyStage: document.querySelector(".story-stage"),
+  sceneArtwork: document.getElementById("sceneArtwork"),
   choiceDock: document.querySelector(".choice-dock"),
   scoreLabel: document.getElementById("scoreLabel"),
   topicLabel: document.getElementById("topicLabel"),
@@ -1139,9 +1160,9 @@ const els = {
   choices: document.getElementById("choices"),
   feedbackBox: document.getElementById("feedbackBox"),
   resetButton: document.getElementById("resetButton"),
+  teacherReturnButton: document.getElementById("teacherReturnButton"),
   signupOnlyItems: document.querySelectorAll(".signup-only"),
   loginOnlyItems: document.querySelectorAll(".login-only"),
-  teacherNavButton: document.querySelector(".teacher-nav"),
   bottomNav: document.querySelector(".bottom-nav"),
 };
 
@@ -1223,7 +1244,7 @@ function isValidUsername(username) {
 
 async function loadSession() {
   if (!supabaseClient) {
-    showLogin("Supabase 설정이 필요합니다. supabase-config.js에 URL과 anon key를 입력하세요.");
+    showLogin("Supabase 설정이 필요합니다. js/config/supabase-config.js에 URL과 anon key를 입력하세요.");
     return;
   }
 
@@ -1254,8 +1275,11 @@ async function loadSession() {
     await loadProfile();
     await loadAllProgress();
     await loadTeacherDashboard();
-    await loadEpisodeProgress(state.episodeIndex);
-    state.view = "home";
+    const openedReport = await applyRequestedReportRoute();
+    if (!openedReport) {
+      await loadEpisodeProgress(state.episodeIndex);
+      state.view = "home";
+    }
     showApp();
     render();
   } else {
@@ -1290,8 +1314,11 @@ async function login(username, password) {
   await loadProfile();
   await loadAllProgress();
   await loadTeacherDashboard();
-  await loadEpisodeProgress(state.episodeIndex);
-  state.view = "home";
+  const openedReport = await applyRequestedReportRoute();
+  if (!openedReport) {
+    await loadEpisodeProgress(state.episodeIndex);
+    state.view = "home";
+  }
   showApp();
   render();
 }
@@ -1334,9 +1361,8 @@ async function loadProfile() {
   return data;
 }
 
-function setTeacherNavigation(visible) {
-  if (els.teacherNavButton) els.teacherNavButton.hidden = !visible;
-  els.bottomNav?.classList.toggle("has-teacher", visible);
+function setTeacherNavigation() {
+  els.bottomNav?.classList.remove("has-teacher");
 }
 
 async function loadTeacherDashboard(options = {}) {
@@ -1609,6 +1635,104 @@ function activeScene() {
   return activeEpisode().scenes[state.sceneId];
 }
 
+function getEpisodeVisual(episode = activeEpisode()) {
+  return EPISODE_VISUALS[episode?.id] || EPISODE_VISUALS.deepfake;
+}
+
+function getCharacterExpression(scene = activeScene()) {
+  if (state.storyMode === "intro" || state.storyMode === "pre") return "neutral";
+  if (state.storyMode === "post" || state.storyMode === "report") return "relieved";
+  if (state.storyMode === "reason") return "serious";
+
+  const copy = [scene?.title, scene?.text, scene?.quote].filter(Boolean).join(" ");
+  if (/(울|외롭|불안|힘들|상처|속상|위험|피해)/.test(copy)) return "sad";
+  if (/(놀라|진짜|갑자기|퍼졌|확산|들켰)/.test(copy)) return "surprised";
+  if (/(확인|신고|검증|책임|설명|선생님|동의)/.test(copy)) return "serious";
+  return "worried";
+}
+
+function applyEpisodeVisual(scene = activeScene()) {
+  const visual = getEpisodeVisual();
+  if (els.sceneArtwork && els.sceneArtwork.getAttribute("src") !== visual) {
+    els.sceneArtwork.setAttribute("src", visual);
+  }
+  els.storyStage.dataset.episode = activeEpisode().id;
+  els.storyStage.dataset.expression = getCharacterExpression(scene);
+}
+
+function clearEpisodeIntroTimer() {
+  if (!episodeIntroTimer) return;
+  window.clearTimeout(episodeIntroTimer);
+  episodeIntroTimer = null;
+}
+
+async function finishEpisodeIntro() {
+  if (!els.storyStage.classList.contains("is-intro-stage")) return;
+  clearEpisodeIntroTimer();
+  state.view = "story";
+  state.storyMode = state.introNextMode || "pre";
+  if (state.storyMode === "pre") {
+    state.feedback = "이야기 전에 지금 생각을 먼저 골라주세요.";
+  }
+  state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
+  render();
+  await saveEpisodeProgress();
+}
+
+function scheduleEpisodeIntro() {
+  clearEpisodeIntroTimer();
+  episodeIntroTimer = window.setTimeout(finishEpisodeIntro, EPISODE_INTRO_DURATION);
+}
+
+function renderEpisodeIntro() {
+  const episodeNumber = state.episodeIndex + 1;
+  els.chapterLine.textContent = `제${episodeNumber}에피소드:`;
+  els.sceneTitle.textContent = activeEpisode().title;
+  els.sceneText.innerHTML = `
+    <p class="episode-intro-summary">${escapeHtml(activeEpisode().summary)}</p>
+    <button class="episode-intro-skip" id="episodeIntroSkip" type="button">바로 시작하기</button>
+  `;
+  els.quoteText.textContent = "";
+  els.feedbackBox.textContent = "";
+}
+
+function renderDialogueBubble(scene) {
+  els.quoteText.innerHTML = scene.quote ? `<p>${escapeHtml(scene.quote)}</p>` : "";
+  els.quoteText.hidden = !scene.quote;
+}
+
+function renderStoryQuestion(scene) {
+  const stepLabel = sceneStepLabel(scene);
+  els.chapterLine.textContent = stepLabel;
+  els.chapterLine.hidden = true;
+  els.sceneTitle.textContent = "어떻게 할까?";
+  els.sceneText.innerHTML = `
+    <div class="scene-heading">
+      <span class="scene-step-label">${escapeHtml(stepLabel)}</span>
+      <span class="scene-copy-label">${escapeHtml(scene.title)}</span>
+    </div>
+    <p>${escapeHtml(scene.text)}</p>
+  `;
+}
+
+function renderStoryScene(scene) {
+  renderStoryQuestion(scene);
+  renderDialogueBubble(scene);
+}
+
+function transitionToScene(action, selectedButton) {
+  if (els.storyStage.classList.contains("is-transitioning")) return;
+  els.storyStage.classList.add("is-transitioning");
+  els.choices.querySelectorAll("button").forEach((button) => {
+    button.disabled = true;
+  });
+  selectedButton?.classList.add("is-selected");
+  window.setTimeout(() => {
+    els.storyStage.classList.remove("is-transitioning");
+    action();
+  }, 180);
+}
+
 function sceneStepLabel(scene) {
   if (scene.end || /^ending$/i.test(scene.chapter || "")) {
     return "마지막 장면";
@@ -1668,14 +1792,15 @@ async function answerAssessment(type, option, index) {
   };
 
   state.storyMode = type === "pre" ? "story" : "report";
+  if (type === "post") state.reportTab = "summary";
   state.sceneStartedAt = type === "pre" ? Date.now() : null;
   state.feedback =
     type === "pre"
       ? "사전 질문을 완료했습니다. 이제 첫 번째 선택을 골라보세요."
       : "사후 생각이 기록되었습니다. 결과 리포트를 확인해보세요.";
 
-  await saveEpisodeProgress();
   render();
+  await saveEpisodeProgress();
 }
 
 function assessmentChangeText(response) {
@@ -1948,7 +2073,17 @@ function aiCoachHtml() {
             maxlength="240"
             placeholder="예: 왜 투명성 점수가 낮게 나왔나요?"
           />
-          <button id="aiExplainButton" type="submit">AI 설명 받기</button>
+          <button
+            id="aiExplainButton"
+            type="submit"
+            aria-label="AI 설명 받기"
+            title="AI 설명 받기"
+          >
+            <svg class="ai-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+          </button>
         </div>
         <div class="ai-question-suggestions" aria-labelledby="aiSuggestionLabel">
           <span id="aiSuggestionLabel">추천 질문</span>
@@ -2100,7 +2235,8 @@ async function requestAiExplanation(event) {
   suggestionButtons.forEach((suggestionButton) => {
     suggestionButton.disabled = true;
   });
-  button.textContent = "분석 중...";
+  button.setAttribute("aria-label", "분석 중");
+  button.setAttribute("title", "분석 중");
   output.hidden = false;
   output.classList.remove("is-error");
   output.setAttribute("aria-busy", "true");
@@ -2139,7 +2275,8 @@ async function requestAiExplanation(event) {
     suggestionButtons.forEach((suggestionButton) => {
       suggestionButton.disabled = false;
     });
-    button.textContent = "AI 설명 받기";
+    button.setAttribute("aria-label", "AI 설명 받기");
+    button.setAttribute("title", "AI 설명 받기");
   }
 }
 
@@ -2158,11 +2295,142 @@ function bindReportActions() {
   document.querySelectorAll(".ai-question-suggestion").forEach((button) => {
     button.addEventListener("click", requestSuggestedAiExplanation);
   });
+  document.querySelectorAll("[data-report-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.reportTab = button.dataset.reportTab;
+      const url = new URL(window.location.href);
+      url.searchParams.set("report", state.reportTab);
+      url.searchParams.set("episode", activeEpisode().id);
+      window.history.replaceState({}, "", url);
+      render();
+      els.sceneText.scrollTop = 0;
+    });
+  });
 }
 
-function reportHtml(episode, response) {
-  const diagnosis = guidelineDiagnosis();
+function openReportDetailInNewTab() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("report", "analysis");
+  url.searchParams.set("episode", activeEpisode().id);
+  window.open(url.toString(), "_blank", "noopener");
+}
+
+async function applyRequestedReportRoute() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedTab = params.get("report");
+  const requestedEpisodeId = params.get("episode");
+  const validTabs = ["analysis", "ai", "concept"];
+  if (!validTabs.includes(requestedTab) || !requestedEpisodeId) return false;
+
+  const episodeIndex = episodes.findIndex((episode) => episode.id === requestedEpisodeId);
+  if (episodeIndex < 0) return false;
+
+  state.episodeIndex = episodeIndex;
+  const loaded = await loadEpisodeProgress(episodeIndex);
+  if (!loaded) return false;
+
+  state.view = "story";
+  state.storyMode = "report";
+  state.reportTab = requestedTab;
+  return true;
+}
+
+function reportInsightsHtml(episode, response, diagnosis) {
   return `
+    <div class="insight-list">
+      ${
+        diagnosis
+          ? `<article>
+              <span>원칙별 진단</span>
+              <p><strong>${escapeHtml(diagnosis.weakest.name)} ${diagnosis.weakest.score}점</strong> · ${escapeHtml(diagnosis.level)}</p>
+              <p>${escapeHtml(diagnosis.weakest.description)}</p>
+            </article>
+            <article>
+              <span>맞춤 학습 추천</span>
+              <p>${escapeHtml(diagnosis.recommendation)}</p>
+            </article>`
+          : ""
+      }
+      <article>
+        <span>생각 변화</span>
+        <p>${assessmentChangeHtml(response)}</p>
+      </article>
+      <article>
+        <span>기억할 원칙</span>
+        <p>${escapeHtml(episode.assessment.principle)}</p>
+      </article>
+      <article>
+        <span>현실 행동</span>
+        <p>${escapeHtml(episode.assessment.action)}</p>
+      </article>
+    </div>
+  `;
+}
+
+function reportDetailTabsHtml(activeTab) {
+  const tabs = [
+    ["analysis", "상세 분석"],
+    ["ai", "AI 설명"],
+    ["concept", "핵심 개념"],
+  ];
+
+  return `
+    <div class="report-detail-tabs" role="tablist" aria-label="결과 상세 메뉴">
+      ${tabs
+        .map(
+          ([value, label]) => `
+            <button
+              type="button"
+              role="tab"
+              class="${activeTab === value ? "is-active" : ""}"
+              aria-selected="${activeTab === value}"
+              data-report-tab="${value}"
+            >${label}</button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function reportDetailHtml(episode, response) {
+  const diagnosis = guidelineDiagnosis();
+  const activeTab = ["analysis", "ai", "concept"].includes(state.reportTab)
+    ? state.reportTab
+    : "analysis";
+  let content = "";
+
+  if (activeTab === "ai") {
+    content = aiCoachHtml();
+  } else if (activeTab === "concept") {
+    content = `<section class="report-learning">${learningHtml(episode.id)}</section>`;
+  } else {
+    content = `
+      <section class="report-analysis-panel" aria-label="상세 분석 보기">
+        ${scoreBreakdownHtml()}
+        ${learnerAnalysisHtml(currentLearningAnalysis())}
+        ${reportInsightsHtml(episode, response, diagnosis)}
+      </section>
+    `;
+  }
+
+  return `
+    <div class="report-detail-view">
+      ${reportDetailTabsHtml(activeTab)}
+      <div class="report-detail-content" role="tabpanel">
+        ${content}
+      </div>
+    </div>
+  `;
+}
+
+function reportOverviewHtml(episode) {
+  return `
+    <section class="report-overview" aria-label="에피소드 결과 요약">
+      <div class="report-episode-heading">
+        <span>Episode complete</span>
+        <strong>${escapeHtml(episode.title)}</strong>
+      </div>
     <div class="report-summary">
       <article class="report-score">
         <span>이번 에피소드 점수</span>
@@ -2181,45 +2449,14 @@ function reportHtml(episode, response) {
       </article>
     </div>
     ${resultSnapshotHtml()}
-    <details class="result-analysis">
-      <summary>
-        <span>상세 분석 보기</span>
-        <strong>원칙별 점수 · 선택 근거 · 정책 출처</strong>
-      </summary>
-      <div class="result-analysis-content">
-        ${scoreBreakdownHtml()}
-        ${learnerAnalysisHtml(currentLearningAnalysis())}
-        <div class="insight-list">
-          ${
-            diagnosis
-              ? `<article>
-                  <span>원칙별 진단</span>
-                  <p><strong>${escapeHtml(diagnosis.weakest.name)} ${diagnosis.weakest.score}점</strong> · ${escapeHtml(diagnosis.level)}</p>
-                  <p>${escapeHtml(diagnosis.weakest.description)}</p>
-                </article>
-                <article>
-                  <span>맞춤 학습 추천</span>
-                  <p>${escapeHtml(diagnosis.recommendation)}</p>
-                </article>`
-              : ""
-          }
-          <article>
-            <span>생각 변화</span>
-            <p>${assessmentChangeHtml(response)}</p>
-          </article>
-          <article>
-            <span>기억할 원칙</span>
-            <p>${escapeHtml(episode.assessment.principle)}</p>
-          </article>
-          <article>
-            <span>현실 행동</span>
-            <p>${escapeHtml(episode.assessment.action)}</p>
-          </article>
-        </div>
-      </div>
-    </details>
-    ${aiCoachHtml()}
+    </section>
   `;
+}
+
+function reportHtml(episode, response) {
+  return state.reportTab === "summary"
+    ? reportOverviewHtml(episode)
+    : reportDetailHtml(episode, response);
 }
 
 function scoreBreakdownHtml() {
@@ -2463,51 +2700,73 @@ async function loadAllProgress() {
   );
 }
 
-async function saveEpisodeProgress() {
+function saveEpisodeProgress() {
   if (!supabaseClient || !currentUser) {
-    return;
+    return Promise.resolve(true);
   }
 
+  const episode = activeEpisode();
   const scene = activeScene();
-  let error;
-  try {
-    ({ error } = await supabaseClient.from("user_episode_progress").upsert(
-      {
-        user_id: currentUser.id,
-        episode_id: activeEpisode().id,
-        scene_id: state.sceneId,
-        score: scoreAverage(),
-        scores: state.scores,
-        history: state.history,
-        feedback: state.feedback,
-        story_mode: state.storyMode,
-        assessment: state.assessments[activeEpisode().id] || {},
-        completed: Boolean(scene.end),
-        ending: scene.end ? endingName() : null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,episode_id" },
-    ));
-  } catch (requestError) {
-    state.feedback = supabaseConnectionMessage(requestError);
-    return;
-  }
-
-  if (error) {
-    state.feedback = `기록 저장 오류: ${error.message}`;
-    return;
-  }
-
-  state.progress[activeEpisode().id] = {
-    episode_id: activeEpisode().id,
+  const snapshot = {
+    userId: currentUser.id,
+    episodeId: episode.id,
+    sceneId: state.sceneId,
     score: scoreAverage(),
-    scores: state.scores,
-    history: state.history,
-    assessment: state.assessments[activeEpisode().id] || {},
+    scores: JSON.parse(JSON.stringify(state.scores)),
+    history: JSON.parse(JSON.stringify(state.history)),
+    feedback: state.feedback,
+    storyMode: state.storyMode,
+    assessment: JSON.parse(JSON.stringify(state.assessments[episode.id] || {})),
     completed: Boolean(scene.end),
     ending: scene.end ? endingName() : null,
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
+
+  const persistSnapshot = async () => {
+    let error;
+    try {
+      ({ error } = await supabaseClient.from("user_episode_progress").upsert(
+        {
+          user_id: snapshot.userId,
+          episode_id: snapshot.episodeId,
+          scene_id: snapshot.sceneId,
+          score: snapshot.score,
+          scores: snapshot.scores,
+          history: snapshot.history,
+          feedback: snapshot.feedback,
+          story_mode: snapshot.storyMode,
+          assessment: snapshot.assessment,
+          completed: snapshot.completed,
+          ending: snapshot.ending,
+          updated_at: snapshot.updatedAt,
+        },
+        { onConflict: "user_id,episode_id" },
+      ));
+    } catch (requestError) {
+      state.feedback = supabaseConnectionMessage(requestError);
+      return false;
+    }
+
+    if (error) {
+      state.feedback = `기록 저장 오류: ${error.message}`;
+      return false;
+    }
+
+    state.progress[snapshot.episodeId] = {
+      episode_id: snapshot.episodeId,
+      score: snapshot.score,
+      scores: snapshot.scores,
+      history: snapshot.history,
+      assessment: snapshot.assessment,
+      completed: snapshot.completed,
+      ending: snapshot.ending,
+      updated_at: snapshot.updatedAt,
+    };
+    return true;
+  };
+
+  episodeSaveQueue = episodeSaveQueue.then(persistSnapshot, persistSnapshot);
+  return episodeSaveQueue;
 }
 
 async function startEpisode(index, options = {}) {
@@ -2518,7 +2777,9 @@ async function startEpisode(index, options = {}) {
   state.history = [];
   state.feedback = "";
   state.view = "story";
-  state.storyMode = "pre";
+  state.storyMode = "intro";
+  state.reportTab = "summary";
+  state.introNextMode = "pre";
   state.pendingDecision = null;
   state.decisionReasons = [];
   state.decisionReasonStatus = "idle";
@@ -2532,18 +2793,26 @@ async function startEpisode(index, options = {}) {
   resetScores(episodes[index]);
   if (options.loadSaved !== false) {
     const loaded = await loadEpisodeProgress(index);
-    if (!loaded) {
+    if (loaded) {
+      const resumableModes = ["pre", "story", "post", "report"];
+      state.introNextMode = resumableModes.includes(state.storyMode)
+        ? state.storyMode
+        : state.assessments[episodeId]?.pre?.answer
+          ? "story"
+          : "pre";
+    } else {
       state.assessments[episodeId] = {
         attemptCount: Math.max(1, Number(previousAssessment.attemptCount || 0)),
       };
     }
   }
+  state.storyMode = "intro";
+  state.sceneStartedAt = null;
+  syncNav();
+  render();
   if (options.saveReset) {
     await saveEpisodeProgress();
   }
-  state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
-  syncNav();
-  render();
 }
 
 function queueChoice(choice, choiceIndex) {
@@ -2709,8 +2978,8 @@ async function applyDecisionReason(reason) {
   state.view = "story";
   state.storyMode = activeScene().end ? "post" : "story";
   state.sceneStartedAt = state.storyMode === "story" ? Date.now() : null;
-  await saveEpisodeProgress();
   render();
+  await saveEpisodeProgress();
 }
 
 function scoreAverage() {
@@ -2798,13 +3067,6 @@ function renderDecisionReasons() {
   const reasons = state.decisionReasons.length === 3
     ? state.decisionReasons
     : fallbackDecisionReasons(state.pendingDecision);
-  const source = document.createElement("p");
-  source.className = "reason-options-source";
-  source.textContent = state.decisionReasonSource === "ai"
-    ? "AI 추천 이유 · 현재 장면과 선택에 맞춰 생성됨"
-    : "기본 이유 · AI 연결이 지연되어 안전한 대체 항목을 표시함";
-  els.choices.appendChild(source);
-
   reasons.forEach((reason, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -2822,6 +3084,8 @@ function renderEpisodeList() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "episode-card";
+    button.style.setProperty("--episode-card-art", `url("${getEpisodeVisual(episode)}")`);
+    button.setAttribute("aria-label", `${index + 1}번째 에피소드 ${episode.title}, ${episodeProgressLabel(episode)}`);
     button.innerHTML = `
       <span class="episode-card-index" data-step="${index + 1}">Episode ${index + 1}</span>
       <span class="episode-card-title">${episode.title}</span>
@@ -2849,6 +3113,10 @@ function renderChoices(scene) {
     return;
   }
 
+  if (state.view === "story" && state.storyMode === "intro") {
+    return;
+  }
+
   if (state.view === "story" && state.storyMode === "post") {
     renderAssessmentOptions("post");
     return;
@@ -2860,10 +3128,27 @@ function renderChoices(scene) {
   }
 
   if (state.view === "story" && state.storyMode === "report") {
+    if (state.reportTab !== "summary") {
+      const summary = document.createElement("button");
+      summary.type = "button";
+      summary.className = "choice-button is-primary report-back-button";
+      summary.innerHTML = "<span>결과 요약으로 돌아가기</span>";
+      summary.addEventListener("click", () => {
+        state.reportTab = "summary";
+        const url = new URL(window.location.href);
+        url.searchParams.delete("report");
+        url.searchParams.delete("episode");
+        window.history.replaceState({}, "", url);
+        render();
+      });
+      els.choices.appendChild(summary);
+      return;
+    }
+
     const replay = document.createElement("button");
     replay.type = "button";
     replay.className = "choice-button is-primary";
-    replay.innerHTML = `<strong>${endingName()}</strong>다시 플레이`;
+    replay.innerHTML = "<span>다시 플레이</span>";
     replay.addEventListener("click", () =>
       startEpisode(state.episodeIndex, { loadSaved: false, saveReset: true }),
     );
@@ -2872,56 +3157,20 @@ function renderChoices(scene) {
     const nextEpisode = document.createElement("button");
     nextEpisode.type = "button";
     nextEpisode.className = "choice-button";
-    nextEpisode.innerHTML = "<strong>다음 에피소드</strong>다른 주제로 이어서 학습";
+    nextEpisode.innerHTML = "<span>주제 이어서 학습</span>";
     nextEpisode.addEventListener("click", () => startEpisode((state.episodeIndex + 1) % episodes.length));
     els.choices.appendChild(nextEpisode);
 
-    const learn = document.createElement("button");
-    learn.type = "button";
-    learn.className = "choice-button";
-    learn.innerHTML = "<strong>학습 정리</strong>핵심 개념 다시 보기";
-    learn.addEventListener("click", () => {
-      state.view = "learn";
-      syncNav();
-      render();
-    });
-    els.choices.appendChild(learn);
+    const details = document.createElement("button");
+    details.type = "button";
+    details.className = "choice-button report-detail-button";
+    details.innerHTML = "<span>분석 결과 자세히 보기</span>";
+    details.addEventListener("click", openReportDetailInNewTab);
+    els.choices.appendChild(details);
     return;
   }
 
-  if (state.view === "profile") {
-    const profile = state.profile || {};
-    const form = document.createElement("form");
-    form.className = "profile-form";
-    form.innerHTML = `
-      <label>
-        <span>아이디</span>
-        <input type="text" value="${escapeAttribute(profile.username || "")}" readonly />
-      </label>
-      <label>
-        <span>이름</span>
-        <input id="profileNameInput" type="text" value="${escapeAttribute(profile.display_name || "")}" />
-      </label>
-      <label>
-        <span>가입일</span>
-        <input type="text" value="${escapeAttribute(formatProfileDate(profile.created_at))}" readonly />
-      </label>
-      <label class="profile-consent">
-        <input id="analyticsConsentInput" type="checkbox" ${profile.analytics_consent ? "checked" : ""} />
-        <span>익명화된 선택 기록을 졸업 연구의 모델 검증에 활용하는 데 동의해요.</span>
-      </label>
-      <button class="choice-button is-primary profile-save" type="submit">
-        <strong>저장</strong>프로필 수정
-      </button>
-    `;
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      updateProfileSettings(
-        form.querySelector("#profileNameInput").value,
-        form.querySelector("#analyticsConsentInput").checked,
-      );
-    });
-    els.choices.appendChild(form);
+  if (["record", "learn", "profile"].includes(state.view)) {
     return;
   }
 
@@ -2994,24 +3243,71 @@ function renderChoices(scene) {
     button.type = "button";
     button.className = "choice-button";
     button.innerHTML = `<strong>${index + 1}</strong><span>${escapeHtml(choice.label)}</span>`;
-    button.addEventListener("click", () => queueChoice(choice, index));
+    button.addEventListener("click", () =>
+      transitionToScene(() => queueChoice(choice, index), button),
+    );
     els.choices.appendChild(button);
   });
 }
 
+function recordEpisodeHistory(episodeId) {
+  if (episodeId === activeEpisode().id && state.history.length) {
+    return state.history;
+  }
+  const savedHistory = state.progress[episodeId]?.history;
+  return Array.isArray(savedHistory) ? savedHistory : [];
+}
+
+function episodePickerHtml(selectedEpisodeId, mode) {
+  const isRecord = mode === "record";
+  const dataAttribute = isRecord ? "data-record-episode" : "data-learning-episode";
+  const ariaLabel = isRecord ? "기록을 볼 에피소드 선택" : "핵심 개념을 볼 에피소드 선택";
+  return `
+    <div class="record-episode-picker" role="tablist" aria-label="${ariaLabel}">
+      ${episodes
+        .map((episode, index) => {
+          const selected = episode.id === selectedEpisodeId;
+          const description = isRecord
+            ? `${recordEpisodeHistory(episode.id).length || 0}개 선택`
+            : `${episode.meters.length}개 원칙`;
+          return `
+            <button
+              type="button"
+              role="tab"
+              class="record-episode-button${selected ? " is-active" : ""}"
+              ${dataAttribute}="${escapeAttribute(episode.id)}"
+              aria-selected="${selected}"
+            >
+              <span>EP ${index + 1}</span>
+              <strong>${escapeHtml(episode.title)}</strong>
+              <small>${isRecord && !recordEpisodeHistory(episode.id).length ? "기록 없음" : description}</small>
+            </button>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function recordHtml() {
-  if (!state.history.length) {
+  const selectedEpisode = episodes.find((episode) => episode.id === state.recordEpisodeId) || activeEpisode();
+  const selectedHistory = recordEpisodeHistory(selectedEpisode.id);
+  const episodePicker = episodePickerHtml(selectedEpisode.id, "record");
+
+  if (!selectedHistory.length) {
     return `
+      ${episodePicker}
       <div class="empty-state">
-        <strong>아직 기록이 없어요</strong>
-        <p>에피소드를 진행하면 선택한 흐름이 여기에 정리됩니다.</p>
+        <strong>${escapeHtml(selectedEpisode.title)} 기록이 아직 없어요</strong>
+        <p>이 에피소드를 진행하면 선택한 흐름이 여기에 정리됩니다.</p>
       </div>
     `;
   }
 
   return `
+    ${episodePicker}
     <div class="timeline-list">
-      ${state.history
+      ${selectedHistory
         .map(
           (item, index) => `
             <article>
@@ -3041,13 +3337,15 @@ function recordHtml() {
 }
 
 function learningHtml(id) {
-  const principleNames = activeEpisode().meters
+  const selectedEpisode = episodes.find((episode) => episode.id === id) || activeEpisode();
+  const principleNames = selectedEpisode.meters
     .map((key) => GUIDELINE_PRINCIPLES[key].name)
     .join(" · ");
   return `
+    ${episodePickerHtml(selectedEpisode.id, "learning")}
     <p class="guideline-source"><strong>적용 원칙</strong> ${escapeHtml(principleNames)}</p>
     <div class="insight-list">
-      ${learningText(id)
+      ${learningText(selectedEpisode.id)
         .split("\n")
         .filter(Boolean)
         .map(
@@ -3062,6 +3360,24 @@ function learningHtml(id) {
     </div>
     <p class="guideline-source">출처: ${escapeHtml(ETHICS_SOURCES.primary.publisher)} 「${escapeHtml(ETHICS_SOURCES.primary.title)}」 (${escapeHtml(ETHICS_SOURCES.primary.publishedAt)})</p>
   `;
+}
+
+function bindRecordActions() {
+  document.querySelectorAll("[data-record-episode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.recordEpisodeId = button.dataset.recordEpisode;
+      render();
+    });
+  });
+}
+
+function bindLearningActions() {
+  document.querySelectorAll("[data-learning-episode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.learningEpisodeId = button.dataset.learningEpisode;
+      render();
+    });
+  });
 }
 
 function dashboardPercent(value) {
@@ -3222,28 +3538,106 @@ function profileHtml(profile) {
         <strong>${profile.analytics_consent ? "동의" : "미동의"}</strong>
       </article>
     </div>
+    <form class="profile-form support-profile-form" id="profileForm">
+      <label>
+        <span>아이디</span>
+        <input type="text" value="${escapeAttribute(profile.username || "")}" readonly />
+      </label>
+      <label>
+        <span>이름</span>
+        <input id="profileNameInput" type="text" value="${escapeAttribute(profile.display_name || "")}" />
+      </label>
+      <label class="profile-consent">
+        <input id="analyticsConsentInput" type="checkbox" ${profile.analytics_consent ? "checked" : ""} />
+        <span>익명화된 선택 기록을 졸업 연구의 모델 검증에 활용하는 데 동의해요.</span>
+      </label>
+      <button class="choice-button is-primary profile-save" type="submit">
+        <span>프로필 수정 저장</span>
+      </button>
+    </form>
     ${learnerAnalysisHtml(overallLearningAnalysis(), { detailed: true })}
+    ${
+      state.teacherDashboard.authorized
+        ? `<section class="profile-teacher-entry" aria-label="교수자 기능">
+            <div>
+              <span>교수자 전용</span>
+              <strong>익명 학습 분석 대시보드</strong>
+            </div>
+            <button id="openTeacherDashboard" type="button">대시보드 열기 <span aria-hidden="true">→</span></button>
+          </section>`
+        : ""
+    }
   `;
 }
 
+function bindProfileActions() {
+  const form = document.getElementById("profileForm");
+  if (form) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      updateProfileSettings(
+        form.querySelector("#profileNameInput").value,
+        form.querySelector("#analyticsConsentInput").checked,
+      );
+    });
+  }
+
+  document.getElementById("openTeacherDashboard")?.addEventListener("click", () => {
+    state.view = "teacher";
+    syncNav();
+    render();
+  });
+}
+
 function render() {
+  clearEpisodeIntroTimer();
   const episode = activeEpisode();
   const scene = activeScene();
   renderTabs();
+  const isIntro = state.view === "story" && state.storyMode === "intro";
+  const isPre = state.view === "story" && state.storyMode === "pre";
   const isAssessment = state.view === "story" && ["pre", "post", "reason"].includes(state.storyMode);
   const isReport = state.view === "story" && state.storyMode === "report";
   const isScene = state.view === "story" && state.storyMode === "story";
+  const isReason = state.view === "story" && state.storyMode === "reason";
+  const isPost = state.view === "story" && state.storyMode === "post";
+  const isLearnerSupport = ["record", "learn", "profile"].includes(state.view);
   const isSupport = ["record", "learn", "profile", "teacher"].includes(state.view);
+  const isVisualNovel =
+    (state.view === "story" && ["intro", "pre", "story", "reason", "post", "report"].includes(state.storyMode)) ||
+    isLearnerSupport;
+  document.body.classList.toggle("is-visual-novel", isVisualNovel);
+  document.body.classList.toggle("is-game-home", state.view === "home");
+  document.body.classList.toggle("is-teacher-view", state.view === "teacher");
   els.storyStage.classList.toggle("is-home-stage", state.view === "home");
+  els.storyStage.classList.toggle("is-intro-stage", isIntro);
+  els.storyStage.classList.toggle("is-pre-stage", isPre);
   els.storyStage.classList.toggle("is-assessment-stage", isAssessment);
   els.storyStage.classList.toggle("is-report-stage", isReport);
+  els.storyStage.classList.toggle("is-report-overview", isReport && state.reportTab === "summary");
+  els.storyStage.classList.toggle("is-report-detail", isReport && state.reportTab !== "summary");
   els.storyStage.classList.toggle("is-scene-stage", isScene);
+  els.storyStage.classList.toggle("is-reason-stage", isReason);
+  els.storyStage.classList.toggle("is-post-stage", isPost);
   els.storyStage.classList.toggle("is-support-stage", isSupport);
   els.choiceDock.classList.toggle("is-home-dock", state.view === "home");
+  els.choiceDock.classList.toggle("is-intro-dock", isIntro);
   els.choiceDock.classList.toggle("is-assessment-dock", isAssessment);
+  if (isIntro) {
+    els.storyStage.setAttribute("tabindex", "0");
+    els.storyStage.setAttribute("role", "button");
+    els.storyStage.setAttribute("aria-label", `${episode.title} 인트로, 눌러서 건너뛰기`);
+  } else {
+    els.storyStage.removeAttribute("tabindex");
+    els.storyStage.removeAttribute("role");
+    els.storyStage.removeAttribute("aria-label");
+  }
   els.feedbackBox.classList.toggle("is-summary", ["home", "profile", "teacher"].includes(state.view));
   els.feedbackBox.classList.remove("is-pre-answer");
   els.quoteText.classList.toggle("is-warning", isAssessment);
+  els.quoteText.hidden = false;
+  els.chapterLine.hidden = false;
+  applyEpisodeVisual(scene);
   els.topicLabel.textContent = episode.topic;
   els.episodeTitle.textContent = episode.title;
   els.episodeSummary.textContent = episode.summary;
@@ -3266,14 +3660,15 @@ function render() {
     els.chapterLine.textContent = "Record";
     els.sceneTitle.textContent = "선택 기록";
     els.sceneText.innerHTML = recordHtml();
-    els.quoteText.textContent = state.history.length
-      ? state.history[state.history.length - 1].feedback
+    const recordHistory = recordEpisodeHistory(state.recordEpisodeId);
+    els.quoteText.textContent = recordHistory.length
+      ? recordHistory[recordHistory.length - 1].feedback
       : "선택을 진행하면 판단 이유가 이곳에 쌓입니다.";
-    els.feedbackBox.textContent = state.history.length ? `현재 흐름: ${endingName()}` : "";
+    els.feedbackBox.textContent = "";
   } else if (state.view === "learn") {
     els.chapterLine.textContent = "Learning";
     els.sceneTitle.textContent = "핵심 개념";
-    els.sceneText.innerHTML = learningHtml(episode.id);
+    els.sceneText.innerHTML = learningHtml(state.learningEpisodeId || episode.id);
     els.quoteText.textContent = "";
     els.feedbackBox.textContent = episode.topic;
   } else if (state.view === "profile") {
@@ -3291,6 +3686,8 @@ function render() {
     els.sceneText.innerHTML = teacherDashboardHtml();
     els.quoteText.textContent = "학생 개인정보 대신 익명 집계 통계로 수업의 취약 지점을 확인합니다.";
     els.feedbackBox.textContent = "위험 선택 비율 · 사전/사후 변화 · 취약 원칙 · 완료율";
+  } else if (state.view === "story" && state.storyMode === "intro") {
+    renderEpisodeIntro();
   } else if (state.view === "story" && state.storyMode === "pre") {
     els.chapterLine.textContent = "Before";
     els.sceneTitle.textContent = "사전 질문";
@@ -3317,27 +3714,21 @@ function render() {
       <p class="selected-decision"><span>방금 선택</span><strong>${escapeHtml(state.pendingDecision?.choice || "-")}</strong></p>
       <p class="reason-prompt">판단할 때 가장 크게 작용한 기준 하나를 골라주세요.</p>
     `;
-    els.quoteText.textContent = "정답을 다시 묻는 단계가 아니라 판단 과정을 분석하기 위한 질문입니다.";
+    els.quoteText.textContent = "";
+    els.quoteText.hidden = true;
     els.feedbackBox.textContent = "";
   } else if (state.view === "story" && state.storyMode === "report") {
     const response = activeAssessmentResponse();
     els.chapterLine.textContent = "Report";
-    els.sceneTitle.textContent = "결과 리포트";
+    els.sceneTitle.textContent = state.reportTab === "summary" ? "결과 리포트" : "결과 자세히 보기";
     els.sceneText.innerHTML = reportHtml(activeEpisode(), response);
-    els.quoteText.textContent = activeEpisode().assessment.principle;
+    els.quoteText.textContent = "";
+    els.quoteText.hidden = true;
     els.feedbackBox.textContent = "선택 기록과 사전·사후 응답이 저장되었습니다.";
   } else {
     const response = activeAssessmentResponse();
     const showPreAnswer = !state.history.length && response.pre?.answer;
-    els.chapterLine.textContent = sceneStepLabel(scene);
-    els.sceneTitle.textContent = scene.title;
-    els.sceneText.innerHTML = `
-      <span class="scene-copy-label">지금 상황</span>
-      <p>${escapeHtml(scene.text)}</p>
-    `;
-    els.quoteText.innerHTML = scene.quote
-      ? `<span class="quote-label">친구의 말</span><p>${escapeHtml(scene.quote)}</p>`
-      : "";
+    renderStoryScene(scene);
 
     if (showPreAnswer) {
       els.feedbackBox.classList.add("is-pre-answer");
@@ -3355,12 +3746,23 @@ function render() {
   renderMeters();
   renderChoices(scene);
   if (isReport) bindReportActions();
+  if (state.view === "record") bindRecordActions();
+  if (state.view === "learn") bindLearningActions();
+  if (state.view === "profile") bindProfileActions();
+  if (isIntro) {
+    document.getElementById("episodeIntroSkip")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void finishEpisodeIntro();
+    });
+    scheduleEpisodeIntro();
+  }
 }
 
 function syncNav() {
   document.querySelectorAll(".nav-item").forEach((item) => {
     const isStorySection = item.dataset.view === "story" && ["home", "story"].includes(state.view);
-    item.classList.toggle("is-active", isStorySection || item.dataset.view === state.view);
+    const isProfileSection = item.dataset.view === "profile" && ["profile", "teacher"].includes(state.view);
+    item.classList.toggle("is-active", isStorySection || isProfileSection || item.dataset.view === state.view);
   });
 }
 
@@ -3424,6 +3826,19 @@ els.resetButton.addEventListener("click", () =>
     : startEpisode(state.episodeIndex, { loadSaved: false, saveReset: true }),
 );
 els.logoutButton.addEventListener("click", logout);
+els.storyStage.addEventListener("click", () => {
+  if (state.view === "story" && state.storyMode === "intro") void finishEpisodeIntro();
+});
+els.storyStage.addEventListener("keydown", (event) => {
+  if (
+    state.view === "story" &&
+    state.storyMode === "intro" &&
+    ["Enter", " "].includes(event.key)
+  ) {
+    event.preventDefault();
+    void finishEpisodeIntro();
+  }
+});
 els.showLoginButton.addEventListener("click", () => setAuthMode("login"));
 els.showSignupButton.addEventListener("click", () => setAuthMode("signup"));
 els.checkUsernameButton.addEventListener("click", checkUsernameAvailability);
@@ -3450,10 +3865,22 @@ els.loginForm.addEventListener("submit", (event) => {
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
+    if (button.dataset.view === "record") {
+      state.recordEpisodeId = activeEpisode().id;
+    }
+    if (button.dataset.view === "learn") {
+      state.learningEpisodeId = activeEpisode().id;
+    }
     state.view = button.dataset.view === "story" ? "home" : button.dataset.view;
     syncNav();
     render();
   });
+});
+
+els.teacherReturnButton.addEventListener("click", () => {
+  state.view = "profile";
+  syncNav();
+  render();
 });
 
 resetScores(episodes[0]);

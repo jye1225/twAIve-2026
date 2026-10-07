@@ -2,7 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 
-const schema = fs.readFileSync(path.join(__dirname, "..", "supabase-schema.sql"), "utf8");
+const schema = fs.readFileSync(path.join(__dirname, "..", "supabase", "schema.sql"), "utf8");
 
 assert.match(schema, /create table if not exists public\.teacher_accounts/i);
 assert.match(schema, /not exists \(\s*select 1 from public\.teacher_accounts where user_id = auth\.uid\(\)/i);

@@ -3,7 +3,7 @@ English | [한국어](README.ko.md)
 # goaljaby (골잡이)
 
 <p align="center">
-  <img src="assets/goaljaby-hero-01.png" alt="goaljaby" width="320">
+  <img src="../../assets/images/goaljaby-hero-01.png" alt="goaljaby" width="320">
 </p>
 
 > **PRD-to-/goal bridge for Claude Code — turn your spec into a verifiable, recoverable, runnable goal.**

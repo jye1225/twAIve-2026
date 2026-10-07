@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">twAIve 시스템 아키텍처</title>
+  <desc id="desc">Vercel, Supabase, 정책 기반 교육 분석 엔진, OpenAI, YouTube, K-means 파일럿 분석으로 구성된 twAIve 시스템 구조</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1266d6"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#68788d"/>
+    </marker>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="5" stdDeviation="9" flood-color="#11315c" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      text { font-family: "GmarketSans", "Noto Sans KR", Arial, sans-serif; fill: #172033; }
+      .title { font-size: 34px; font-weight: 700; fill: #074ca8; }
+      .subtitle { font-size: 16px; fill: #61728a; }
+      .section-label { font-size: 15px; font-weight: 700; fill: #074ca8; }
+      .node-title { font-size: 19px; font-weight: 700; }
+      .node-sub { font-size: 14px; fill: #61728a; }
+      .small { font-size: 13px; fill: #61728a; }
+      .tiny { font-size: 12px; fill: #6f7e91; }
+      .white { fill: #ffffff; }
+      .blue { fill: #0759be; }
+      .orange { fill: #a45a00; }
+      .green { fill: #007d55; }
+      .purple { fill: #6646b8; }
+      .panel { fill: #ffffff; stroke: #c7d9ef; stroke-width: 1.5; }
+      .panel-blue { fill: #f2f7ff; stroke: #8ebcf2; stroke-width: 1.5; }
+      .panel-orange { fill: #fff8e9; stroke: #e9bd6e; stroke-width: 1.5; }
+      .panel-green { fill: #f0faf6; stroke: #91cfb4; stroke-width: 1.5; }
+      .panel-purple { fill: #f6f3ff; stroke: #baa9e8; stroke-width: 1.5; }
+      .chip-blue { fill: #0b63ce; }
+      .chip-green { fill: #00875a; }
+      .chip-orange { fill: #d27a00; }
+      .chip-purple { fill: #7052c7; }
+      .arrow { fill: none; stroke: #1266d6; stroke-width: 2.5; marker-end: url(#arrow-blue); }
+      .arrow-gray { fill: none; stroke: #68788d; stroke-width: 2; marker-end: url(#arrow-gray); }
+      .arrow-dashed { fill: none; stroke: #68788d; stroke-width: 2; stroke-dasharray: 8 7; marker-end: url(#arrow-gray); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#f5f8fc"/>
+  <rect x="24" y="24" width="1552" height="852" rx="8" fill="#ffffff" stroke="#d7e1ed"/>
+
+  <text x="70" y="78" class="title">twAIve 시스템 아키텍처</text>
+  <text x="70" y="108" class="subtitle">선택형 AI 윤리교육 · 정책 기반 분석 · 교수자 지도 제안</text>
+
+  <!-- Users -->
+  <g filter="url(#soft-shadow)">
+    <rect x="70" y="180" width="185" height="150" rx="8" class="panel"/>
+    <circle cx="120" cy="228" r="21" fill="#d8e8fb"/>
+    <circle cx="120" cy="220" r="8" fill="#0759be"/>
+    <path d="M101 250 Q120 230 139 250" fill="#0759be"/>
+    <text x="156" y="220" class="node-title">학생</text>
+    <text x="156" y="246" class="node-sub">스토리 학습</text>
+    <line x1="90" y1="272" x2="235" y2="272" stroke="#dce6f2"/>
+    <text x="90" y="298" class="small">선택 · 판단 이유 · 결과</text>
+  </g>
+
+  <g filter="url(#soft-shadow)">
+    <rect x="70" y="365" width="185" height="150" rx="8" class="panel"/>
+    <circle cx="120" cy="413" r="21" fill="#e1f2eb"/>
+    <circle cx="120" cy="405" r="8" fill="#00875a"/>
+    <path d="M101 435 Q120 415 139 435" fill="#00875a"/>
+    <text x="156" y="405" class="node-title">교수자</text>
+    <text x="156" y="431" class="node-sub">익명 통계 확인</text>
+    <line x1="90" y1="457" x2="235" y2="457" stroke="#dce6f2"/>
+    <text x="90" y="483" class="small">취약 원칙 · 지도 방법</text>
+  </g>
+
+  <!-- Vercel -->
+  <g filter="url(#soft-shadow)">
+    <rect x="335" y="145" width="550" height="205" rx="8" class="panel-blue"/>
+    <rect x="335" y="145" width="550" height="42" rx="8" fill="#0b63ce"/>
+    <rect x="335" y="179" width="550" height="8" fill="#0b63ce"/>
+    <text x="360" y="173" class="section-label white">VERCEL · WEB APPLICATION</text>
+
+    <rect x="365" y="215" width="225" height="105" rx="6" fill="#ffffff" stroke="#a9c9ee"/>
+    <circle cx="397" cy="245" r="15" class="chip-blue"/>
+    <text x="397" y="251" text-anchor="middle" class="white" style="font-size:14px;font-weight:700">W</text>
+    <text x="425" y="244" class="node-title">웹 프론트엔드</text>
+    <text x="395" y="278" class="node-sub">HTML · CSS · Vanilla JS</text>
+    <text x="395" y="301" class="small">반응형 UI · 학습 화면</text>
+
+    <rect x="625" y="215" width="230" height="105" rx="6" fill="#ffffff" stroke="#a9c9ee"/>
+    <circle cx="657" cy="245" r="15" fill="#172033"/>
+    <text x="657" y="251" text-anchor="middle" class="white" style="font-size:12px;font-weight:700">API</text>
+    <text x="685" y="244" class="node-title">Serverless API</text>
+    <text x="655" y="278" class="node-sub">Node.js · 토큰 검증</text>
+    <text x="655" y="301" class="small">AI 설명 · 영상 검색</text>
+  </g>
+
+  <!-- Supabase -->
+  <g filter="url(#soft-shadow)">
+    <rect x="1030" y="145" width="495" height="250" rx="8" class="panel-green"/>
+    <rect x="1030" y="145" width="495" height="42" rx="8" class="chip-green"/>
+    <text x="1055" y="173" class="section-label white">SUPABASE · AUTH &amp; DATABASE</text>
+
+    <rect x="1060" y="212" width="130" height="145" rx="6" fill="#ffffff" stroke="#a9d8c3"/>
+    <circle cx="1125" cy="246" r="20" fill="#d9f2e7"/>
+    <text x="1125" y="252" text-anchor="middle" class="green" style="font-size:16px;font-weight:700">AUTH</text>
+    <text x="1125" y="291" text-anchor="middle" class="node-title">인증</text>
+    <text x="1125" y="319" text-anchor="middle" class="small">회원가입 · 로그인</text>
+    <text x="1125" y="341" text-anchor="middle" class="tiny">비밀번호 보안 저장</text>
+
+    <rect x="1210" y="212" width="135" height="145" rx="6" fill="#ffffff" stroke="#a9d8c3"/>
+    <ellipse cx="1278" cy="242" rx="25" ry="9" fill="#00875a"/>
+    <rect x="1253" y="242" width="50" height="32" fill="#00875a"/>
+    <ellipse cx="1278" cy="274" rx="25" ry="9" fill="#006f4a"/>
+    <text x="1278" y="306" text-anchor="middle" class="node-title">PostgreSQL</text>
+    <text x="1278" y="332" text-anchor="middle" class="small">프로필 · 학습 기록</text>
+
+    <rect x="1365" y="212" width="130" height="145" rx="6" fill="#ffffff" stroke="#a9d8c3"/>
+    <circle cx="1430" cy="247" r="21" fill="#d9f2e7"/>
+    <text x="1430" y="253" text-anchor="middle" class="green" style="font-size:13px;font-weight:700">RLS</text>
+    <text x="1430" y="291" text-anchor="middle" class="node-title">보안 집계</text>
+    <text x="1430" y="319" text-anchor="middle" class="small">RLS · RPC</text>
+    <text x="1430" y="341" text-anchor="middle" class="tiny">교수자 권한 분리</text>
+  </g>
+
+  <!-- Rule engine -->
+  <g filter="url(#soft-shadow)">
+    <rect x="335" y="405" width="690" height="265" rx="8" class="panel"/>
+    <text x="365" y="440" class="section-label">자체 구현 · 정책 기반 교육 분석 엔진</text>
+    <text x="365" y="465" class="small">대한민국 인공지능 윤리원칙 기반 · 생성형 AI와 독립적으로 점수 계산</text>
+
+    <rect x="365" y="495" width="145" height="115" rx="6" class="panel-blue"/>
+    <circle cx="390" cy="520" r="13" class="chip-blue"/>
+    <text x="390" y="525" text-anchor="middle" class="white" style="font-size:12px;font-weight:700">1</text>
+    <text x="390" y="554" class="node-title">스토리 엔진</text>
+    <text x="390" y="580" class="small">5개 에피소드</text>
+    <text x="390" y="600" class="tiny">22장면 · 61선택</text>
+
+    <rect x="530" y="495" width="145" height="115" rx="6" class="panel-blue"/>
+    <circle cx="555" cy="520" r="13" class="chip-blue"/>
+    <text x="555" y="525" text-anchor="middle" class="white" style="font-size:12px;font-weight:700">2</text>
+    <text x="555" y="554" class="node-title">점수 계산</text>
+    <text x="555" y="580" class="small">7대 윤리원칙</text>
+    <text x="555" y="600" class="tiny">0~4 루브릭 → 100점</text>
+
+    <rect x="695" y="495" width="145" height="115" rx="6" class="panel-blue"/>
+    <circle cx="720" cy="520" r="13" class="chip-blue"/>
+    <text x="720" y="525" text-anchor="middle" class="white" style="font-size:12px;font-weight:700">3</text>
+    <text x="720" y="554" class="node-title">특징 추출</text>
+    <text x="720" y="580" class="small">이유 · 응답 시간</text>
+    <text x="720" y="600" class="tiny">위험률 · 사전/사후 변화</text>
+
+    <rect x="860" y="495" width="135" height="115" rx="6" class="panel-blue"/>
+    <circle cx="885" cy="520" r="13" class="chip-blue"/>
+    <text x="885" y="525" text-anchor="middle" class="white" style="font-size:12px;font-weight:700">4</text>
+    <text x="885" y="554" class="node-title">교육 추천</text>
+    <text x="885" y="580" class="small">학생 피드백</text>
+    <text x="885" y="600" class="tiny">교수자 지도 방법</text>
+
+    <rect x="365" y="627" width="290" height="25" rx="4" fill="#e8f2ff"/>
+    <text x="510" y="645" text-anchor="middle" class="small blue">학생 결과 리포트 · 다음 에피소드 추천</text>
+    <rect x="675" y="627" width="320" height="25" rx="4" fill="#e5f5ed"/>
+    <text x="835" y="645" text-anchor="middle" class="small green">교수자 대시보드 · 취약 원칙별 지도 제안</text>
+  </g>
+
+  <!-- External APIs -->
+  <g filter="url(#soft-shadow)">
+    <rect x="1070" y="440" width="455" height="230" rx="8" class="panel-purple"/>
+    <text x="1100" y="475" class="section-label purple">외부 API · 보조 기능</text>
+
+    <rect x="1100" y="500" width="190" height="130" rx="6" fill="#ffffff" stroke="#c4b6ec"/>
+    <circle cx="1140" cy="535" r="22" class="chip-purple"/>
+    <text x="1140" y="541" text-anchor="middle" class="white" style="font-size:13px;font-weight:700">AI</text>
+    <text x="1175" y="535" class="node-title">OpenAI</text>
+    <text x="1120" y="574" class="node-sub">결과 설명</text>
+    <text x="1120" y="598" class="small">장면별 판단 이유 생성</text>
+    <text x="1120" y="619" class="tiny">점수 결정에는 사용하지 않음</text>
+
+    <rect x="1310" y="500" width="185" height="130" rx="6" fill="#ffffff" stroke="#c4b6ec"/>
+    <rect x="1332" y="519" width="42" height="30" rx="6" fill="#e72b2b"/>
+    <polygon points="1348,526 1348,542 1361,534" fill="#ffffff"/>
+    <text x="1390" y="540" class="node-title">YouTube</text>
+    <text x="1332" y="574" class="node-sub">관련 학습 영상</text>
+    <text x="1332" y="598" class="small">Data API · 검색 대체</text>
+    <text x="1332" y="619" class="tiny">실패 시 검색 링크 제공</text>
+  </g>
+
+  <!-- Analytics lane -->
+  <g filter="url(#soft-shadow)">
+    <rect x="335" y="715" width="1190" height="115" rx="8" class="panel-orange"/>
+    <text x="360" y="746" class="section-label orange">데이터 분석 · 실제 데이터와 시연 데이터 분리</text>
+
+    <rect x="360" y="765" width="205" height="42" rx="5" fill="#ffffff" stroke="#e0b567"/>
+    <text x="462" y="783" text-anchor="middle" class="small orange">동의한 실제 학습 기록</text>
+    <text x="462" y="800" text-anchor="middle" class="tiny">Supabase 익명 데이터</text>
+
+    <rect x="595" y="765" width="210" height="42" rx="5" fill="#ffffff" stroke="#e0b567"/>
+    <text x="700" y="783" text-anchor="middle" class="small orange">학습자 단위 특징 집계</text>
+    <text x="700" y="800" text-anchor="middle" class="tiny">충분한 실제 참여자 확보 후</text>
+
+    <rect x="835" y="765" width="220" height="42" rx="5" fill="#ffffff" stroke="#e0b567"/>
+    <text x="945" y="783" text-anchor="middle" class="small orange">K-means 군집분석</text>
+    <text x="945" y="800" text-anchor="middle" class="tiny">Python · pandas · scikit-learn</text>
+
+    <rect x="1085" y="765" width="205" height="42" rx="5" fill="#ffffff" stroke="#e0b567"/>
+    <text x="1187" y="783" text-anchor="middle" class="small orange">집단별 지도 활동</text>
+    <text x="1187" y="800" text-anchor="middle" class="tiny">탐색적 파일럿 분석</text>
+
+    <rect x="1320" y="765" width="180" height="42" rx="5" fill="#fff2f2" stroke="#db9d9d"/>
+    <text x="1410" y="783" text-anchor="middle" class="small" style="fill:#9b3434">시연용 합성 데이터</text>
+    <text x="1410" y="800" text-anchor="middle" class="tiny">실제 분석에 미포함</text>
+  </g>
+
+  <!-- Deployment -->
+  <g>
+    <rect x="70" y="700" width="185" height="130" rx="8" class="panel"/>
+    <circle cx="110" cy="740" r="20" fill="#172033"/>
+    <text x="110" y="747" text-anchor="middle" class="white" style="font-size:16px;font-weight:700">GH</text>
+    <text x="145" y="740" class="node-title">GitHub</text>
+    <text x="90" y="780" class="node-sub">소스 코드 관리</text>
+    <text x="90" y="804" class="small">Push → Vercel 자동 배포</text>
+  </g>
+
+  <!-- Arrows -->
+  <path d="M255 255 H315 Q325 255 325 245 V235 H335" class="arrow"/>
+  <path d="M255 440 H315 Q325 440 325 430 V325 H335" class="arrow"/>
+  <path d="M610 350 V395" class="arrow"/>
+  <path d="M885 248 H1010 Q1020 248 1020 238 V235 H1030" class="arrow"/>
+  <path d="M855 275 H930 Q945 275 945 290 V535 H1070" class="arrow"/>
+  <path d="M1030 330 H1015 Q1005 330 1005 345 V460 Q1005 475 990 475 H960" class="arrow-gray"/>
+  <path d="M1278 395 V700 Q1278 715 1263 715" class="arrow-gray"/>
+  <path d="M565 786 H595" class="arrow-dashed"/>
+  <path d="M805 786 H835" class="arrow-dashed"/>
+  <path d="M1055 786 H1085" class="arrow-dashed"/>
+  <path d="M255 760 H285 Q300 760 300 745 V350 Q300 335 315 335 H335" class="arrow-gray"/>
+
+  <!-- Legend -->
+  <line x1="1035" y1="104" x2="1090" y2="104" class="arrow"/>
+  <text x="1102" y="109" class="tiny">현재 서비스 흐름</text>
+  <line x1="1245" y1="104" x2="1300" y2="104" class="arrow-dashed"/>
+  <text x="1312" y="109" class="tiny">실제 데이터 확보 후 분석</text>
+</svg>

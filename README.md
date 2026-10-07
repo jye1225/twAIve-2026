@@ -1,5 +1,9 @@
 # twAIve-2026
 
+> Repository subdirectory: `2026 졸업프로젝트/`
+>
+> Vercel Project Settings의 Root Directory도 이 폴더로 지정해야 정적 페이지와 `api/` 서버 함수가 함께 배포됩니다.
+
 Graduation project workspace configured with:
 
 - GitHub Spec Kit for spec-driven development
@@ -43,10 +47,10 @@ The site is deployed on Vercel, while user accounts and learning records use Sup
 This project uses Supabase Auth.
 
 1. Create a Supabase project.
-2. Open `supabase-config.js` and replace:
+2. Open `js/config/supabase-config.js` and replace:
    - `YOUR_SUPABASE_PROJECT_URL`
    - `YOUR_SUPABASE_ANON_KEY`
-3. In Supabase, open the SQL editor and run `supabase-schema.sql`.
+3. In Supabase, open the SQL editor and run `supabase/schema.sql`.
 4. In Authentication settings, disable email confirmation for this demo username/password flow.
    The UI asks for username/password, while Supabase Auth receives an internal email like
    `username@twaive-user.example.com`.
@@ -64,10 +68,10 @@ The learning report uses an explainable rule-based model grounded in the 2026
 `대한민국 인공지능 윤리원칙`. Each choice is rated independently across the
 relevant national principles on a 0-4 behavioral rubric, normalized to a
 0-100 principle score, and accompanied by policy evidence codes. The analysis
-architecture is split into `analysis/principle-scorer.js`,
-`analysis/feature-extractor.js`, `analysis/learner-classifier.js`,
-`analysis/content-recommender.js`, and `analysis/learning-model.js`.
-`scoring-engine.js` remains as a compatibility adapter. The modules are validated
+architecture is split into `js/analysis/principle-scorer.js`,
+`js/analysis/feature-extractor.js`, `js/analysis/learner-classifier.js`,
+`js/analysis/content-recommender.js`, and `js/analysis/learning-model.js`.
+`js/scoring-engine.js` remains as a compatibility adapter. The modules are validated
 by `tests/scoring-engine.test.js` and `tests/learning-model.test.js`.
 
 The resulting score is an educational diagnostic, not an official government
@@ -97,8 +101,8 @@ episode completion, consented pattern-analysis readiness, and teaching suggestio
 for weak principles. Individual usernames,
 emails, and answers are not returned.
 
-After running the latest `supabase-schema.sql`, edit and run
-`supabase-teacher-dashboard.sql` to authorize one trusted teacher account.
+After running the latest `supabase/schema.sql`, edit and run
+`supabase/teacher-dashboard.sql` to authorize one trusted teacher account.
 
 ## Data-driven Model Pipeline
 
@@ -135,7 +139,7 @@ then redeploy:
 - `SUPABASE_URL` (required)
 - `SUPABASE_ANON_KEY` (required)
 
-Never put the OpenAI or YouTube secret key in `supabase-config.js` or another
+Never put the OpenAI or YouTube secret key in `js/config/supabase-config.js` or another
 browser-delivered file. Opening `index.html` directly or serving it with a basic
 static server does not execute `/api/explain-result`; use a Vercel deployment or
 Vercel's local development runtime for the AI tutor.

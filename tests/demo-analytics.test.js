@@ -1,5 +1,5 @@
 const assert = require("assert");
-const DemoAnalytics = require("../analysis/demo-analytics.js");
+const DemoAnalytics = require("../js/analysis/demo-analytics.js");
 
 const episodes = Array.from({ length: 5 }, (_, episodeIndex) => ({
   id: `episode-${episodeIndex + 1}`,

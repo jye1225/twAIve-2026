@@ -1,9 +1,9 @@
 const assert = require("node:assert/strict");
-const model = require("../learning-model.js");
-const featureExtractor = require("../analysis/feature-extractor.js");
-const principleScorer = require("../analysis/principle-scorer.js");
-const learnerClassifier = require("../analysis/learner-classifier.js");
-const contentRecommender = require("../analysis/content-recommender.js");
+const model = require("../js/learning-model.js");
+const featureExtractor = require("../js/analysis/feature-extractor.js");
+const principleScorer = require("../js/analysis/principle-scorer.js");
+const learnerClassifier = require("../js/analysis/learner-classifier.js");
+const contentRecommender = require("../js/analysis/content-recommender.js");
 
 const principles = [
   { key: "privacy", name: "프라이버시 보호", score: 45 },

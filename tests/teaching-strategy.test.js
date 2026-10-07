@@ -1,5 +1,5 @@
 const assert = require("assert");
-const strategy = require("../analysis/teaching-strategy.js");
+const strategy = require("../js/analysis/teaching-strategy.js");
 
 const principles = {
   privacy: { name: "프라이버시 보호" },

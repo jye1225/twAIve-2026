@@ -1,4 +1,4 @@
--- 1. Run the latest supabase-schema.sql first.
+-- 1. Run the latest supabase/schema.sql first.
 -- 2. Replace the username below with the account that should see the teacher dashboard.
 -- This changes access permissions, so run it only for a trusted teacher account.
 
