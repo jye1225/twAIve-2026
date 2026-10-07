@@ -2078,10 +2078,9 @@ function aiCoachHtml() {
     <section class="ai-coach" aria-labelledby="aiCoachTitle">
       <div class="ai-coach-heading">
         <div>
-          <span>선택형 기능</span>
+          <span>AI 피드백</span>
           <h4 id="aiCoachTitle">AI에게 내 결과 설명 듣기</h4>
         </div>
-        <p>점수와 선택 기록을 바탕으로 어려운 부분을 풀어 설명하고, 관련 학습 영상을 찾아줍니다.</p>
       </div>
       <form class="ai-coach-form" id="aiCoachForm">
         <label for="aiQuestionInput">궁금한 점 <small>선택 입력</small></label>
@@ -2111,7 +2110,7 @@ function aiCoachHtml() {
           </div>
         </div>
       </form>
-      <p class="ai-data-note">이름과 아이디는 전송하지 않습니다. 생성된 설명은 교육 보조 자료이며 공식 평가나 법률 판단이 아닙니다.</p>
+      <p class="ai-data-note">이름과 아이디는 AI에게 보내지 않아.</p>
       <div class="ai-coach-output" id="aiCoachOutput" aria-live="polite" hidden></div>
     </section>
   `;
@@ -2168,8 +2167,10 @@ function appendTextElement(parent, tagName, className, text) {
 
 function appendExplanationList(parent, title, items) {
   const section = document.createElement("section");
+  section.className = "ai-explanation-section";
   appendTextElement(section, "h5", "", title);
-  const list = document.createElement("ul");
+  const list = document.createElement("ol");
+  list.className = "ai-explanation-list";
   items.forEach((item) => appendTextElement(list, "li", "", item));
   section.appendChild(list);
   parent.appendChild(section);
@@ -2183,12 +2184,23 @@ function renderAiExplanation(data) {
   output.hidden = false;
   output.classList.remove("is-error");
   if (data.explanationSource === "local-fallback") {
-    appendTextElement(output, "p", "ai-explanation-notice", "AI 연결이 잠시 불안정해 저장된 점수 기준으로 기본 분석을 보여줘요.");
+    appendTextElement(output, "p", "ai-explanation-notice", "AI 답변을 완성하지 못해 저장된 점수 기준으로 기본 설명을 보여줄게.");
   }
-  appendTextElement(output, "strong", "ai-explanation-summary", data.explanation.summary);
-  appendTextElement(output, "p", "ai-explanation-answer", data.explanation.answer);
-  appendExplanationList(output, "점수가 나온 이유", data.explanation.scoreReasons || []);
-  appendExplanationList(output, "다음에 해볼 행동", data.explanation.nextActions || []);
+  const overview = document.createElement("section");
+  overview.className = "ai-explanation-section ai-explanation-overview";
+  appendTextElement(overview, "h5", "", "한눈에 보기");
+  appendTextElement(overview, "p", "ai-explanation-result", `${scoreAverage()}점 · ${endingName().split(" · ").pop()}`);
+  appendTextElement(overview, "strong", "ai-explanation-summary", data.explanation.summary);
+  output.appendChild(overview);
+
+  const answer = document.createElement("section");
+  answer.className = "ai-explanation-section";
+  appendTextElement(answer, "h5", "", "질문에 대한 답");
+  appendTextElement(answer, "p", "ai-explanation-answer", data.explanation.answer);
+  output.appendChild(answer);
+  appendExplanationList(output, "내 선택 돌아보기", data.explanation.scoreReasons || []);
+  appendExplanationList(output, "다음에는 이렇게", data.explanation.nextActions || []);
+  appendTextElement(output, "p", "ai-explanation-disclaimer", "스토리 속 선택을 바탕으로 한 학습용 설명이야. 공식 평가·법률 판단·심리검사는 아니야.");
 
   const videoSection = document.createElement("section");
   videoSection.className = "ai-video-section";
@@ -2259,7 +2271,7 @@ async function requestAiExplanation(event) {
   output.hidden = false;
   output.classList.remove("is-error");
   output.setAttribute("aria-busy", "true");
-  output.textContent = "선택 기록과 정책 기준을 함께 살펴보고 있습니다.";
+  output.textContent = "네 선택을 살펴보고 있어. 잠깐만 기다려줘.";
 
   try {
     if (!supabaseClient) {
@@ -2286,6 +2298,11 @@ async function requestAiExplanation(event) {
       throw new Error(responseData.message || "AI 설명 서버에 연결하지 못했습니다.");
     }
     renderAiExplanation(responseData);
+    const tabsHeight = document.querySelector(".report-detail-tabs")?.getBoundingClientRect().height || 0;
+    els.sceneText.scrollTo({
+      top: els.sceneText.scrollTop + output.getBoundingClientRect().top - els.sceneText.getBoundingClientRect().top - tabsHeight - 12,
+      behavior: "smooth",
+    });
   } catch (error) {
     showAiCoachError(error.message || "잠시 후 다시 시도해주세요.");
   } finally {

@@ -6574,7 +6574,7 @@ body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row input::pl
 }
 
 body.is-visual-novel .story-stage.is-report-detail .ai-coach-output {
-  gap: 12px;
+  gap: 20px;
   border-color: rgba(255, 165, 221, 0.24);
   color: var(--ai-copy);
   font-size: 14px;
@@ -6599,6 +6599,52 @@ body.is-visual-novel .story-stage.is-report-detail .ai-coach-output h5 {
   color: var(--ai-accent);
   font-size: 14px;
   line-height: 1.5;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-section {
+  min-width: 0;
+  gap: 8px;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-section + .ai-explanation-section {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 165, 221, 0.18);
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-result {
+  margin: 0;
+  color: var(--ai-emphasis);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--ai-copy);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-list li {
+  min-width: 0;
+  padding-left: 4px;
+  overflow-wrap: anywhere;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-list li::marker {
+  color: var(--ai-accent);
+  font-weight: 700;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-explanation-disclaimer {
+  margin: 0;
+  color: var(--ai-copy);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 body.is-visual-novel .story-stage.is-report-detail .ai-explanation-notice {
