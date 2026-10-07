@@ -2434,6 +2434,209 @@ body:not(.is-authenticated) .legal-links a {
   color: #f4acd9;
 }
 
+/* Keep authentication in the same compact frame as the game. */
+body:not(.is-authenticated) .login-screen {
+  padding: 12px;
+}
+
+body:not(.is-authenticated) .auth-shell {
+  display: flex;
+  flex-direction: column;
+  color-scheme: dark;
+  width: min(480px, 100%);
+  min-height: min(860px, calc(100dvh - 24px));
+  border-color: rgba(255, 175, 226, 0.22);
+  border-radius: 8px;
+  background: #100b17;
+  backdrop-filter: none;
+}
+
+.auth-visual {
+  position: relative;
+  flex: 0 0 176px;
+  height: 176px;
+  overflow: hidden;
+}
+
+.auth-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 32%;
+}
+
+.auth-visual::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(180deg, transparent 45%, #100b17);
+}
+
+body:not(.is-authenticated) .auth-shell .login-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 24px;
+  border: 0;
+  color: #fff5fc;
+  background: #100b17;
+  font-family: var(--font-dialogue);
+}
+
+.auth-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+body:not(.is-authenticated) .auth-heading .eyebrow {
+  margin: 0;
+  color: #f4acd9;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+body:not(.is-authenticated) .login-card h1 {
+  margin: 0;
+  color: #fff5fc;
+  font-size: 26px;
+  line-height: 1.3;
+}
+
+body:not(.is-authenticated) .login-copy {
+  margin: 0;
+  color: #ddcfda;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body:not(.is-authenticated) .login-card label {
+  min-width: 0;
+  gap: 8px;
+  color: #f6eaf4;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+body:not(.is-authenticated) .login-card .input-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+body:not(.is-authenticated) .login-card input {
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-color: #766174;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #261b2d;
+  font: inherit;
+  font-size: 16px;
+}
+
+body:not(.is-authenticated) .login-card input:focus-visible {
+  border-color: #f4acd9;
+  outline: 2px solid #f4acd9;
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+body:not(.is-authenticated) .check-button {
+  min-width: 76px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border-color: #a37398;
+  border-radius: 6px;
+  color: #fff5fc;
+  background: #382239;
+  font: inherit;
+  font-size: 13px;
+}
+
+body:not(.is-authenticated) .login-button {
+  min-height: 46px;
+  padding: 12px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+body:not(.is-authenticated) .signup-link,
+body:not(.is-authenticated) .auth-back {
+  min-height: 44px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+body:not(.is-authenticated) .login-error,
+body:not(.is-authenticated) .auth-message {
+  min-height: 0;
+  margin: 0;
+  color: #ffc1c9;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+body:not(.is-authenticated) .auth-message.is-success {
+  color: #a2e5ce;
+}
+
+body:not(.is-authenticated) .login-error:empty,
+body:not(.is-authenticated) .auth-message:empty {
+  display: none;
+}
+
+body:not(.is-authenticated) .legal-links {
+  margin-top: auto;
+  padding-top: 16px;
+  border-color: rgba(255, 175, 226, 0.22);
+}
+
+body:not(.is-authenticated) .legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #ddcfda;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  body:not(.is-authenticated) .login-screen {
+    padding: 0;
+  }
+
+  body:not(.is-authenticated) .auth-shell {
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  body:not(.is-authenticated) .auth-shell .login-card {
+    padding: 20px 24px max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-height: 760px) {
+  .auth-visual {
+    flex-basis: 132px;
+    height: 132px;
+  }
+}
+
+@media (max-height: 500px) {
+  .auth-visual {
+    flex-basis: 100px;
+    height: 100px;
+  }
+}
+
 body.is-visual-novel,
 body.is-game-home {
   --secondary-copy: #ddcfda;

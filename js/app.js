@@ -1198,21 +1198,19 @@ function setAuthMode(mode) {
   els.displayNameInput.required = isSignup;
   els.passwordConfirmInput.required = isSignup;
   els.authSubmitButton.textContent = isSignup ? "회원가입" : "로그인";
-  els.authModeCopy.textContent = isSignup
-    ? "이름, 아이디, 비밀번호로 새 계정을 만들 수 있습니다."
-    : "로그인 후 에피소드별 선택 기록과 학습 진행을 확인하세요.";
+  els.authModeCopy.textContent = isSignup ? "회원가입" : "로그인";
   els.loginError.textContent = "";
   showPasswordCheckMessage("", "");
 }
 
 function showLogin(message = "") {
   setAuthMode("login");
-  document.body.classList.remove("is-authenticated");
+  document.body.classList.remove("is-authenticated", "is-visual-novel", "is-game-home", "is-teacher-view");
   els.loginError.textContent = message;
   els.passwordInput.value = "";
   els.passwordConfirmInput.value = "";
   showPasswordCheckMessage("", "");
-  requestAnimationFrame(() => els.usernameInput.focus());
+  requestAnimationFrame(() => els.usernameInput.focus({ preventScroll: true }));
 }
 
 function showAuthError(message) {

@@ -4,50 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twAIve - AI 윤리 스토리 게임</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261007-8" />
+    <link rel="stylesheet" href="css/styles.css?v=20261007-9" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="로그인">
       <div class="auth-shell">
-        <section class="product-preview" aria-labelledby="previewTitle">
-          <header class="preview-header">
-            <p>AI 윤리 인터랙티브 학습</p>
-            <h2 id="previewTitle">선택하며 배우는 AI 윤리</h2>
-            <span>일상에서 마주치는 AI 윤리 문제를 직접 판단하고 결과를 확인하는 스토리형 학습 서비스입니다.</span>
-          </header>
-
-          <div class="preview-flow" aria-label="서비스 이용 방법">
-            <section>
-              <span>01 · 상황 이해</span>
-              <strong>실제와 가까운 AI 윤리 상황을 읽어요.</strong>
-              <p>딥페이크, 허위정보, AI 챗봇, 과제 활용, 개인정보를 다룹니다.</p>
-            </section>
-            <section>
-              <span>02 · 선택과 결과</span>
-              <strong>내 선택이 만든 변화를 확인해요.</strong>
-              <p>선택에 따라 이야기의 흐름과 윤리 판단 결과가 달라집니다.</p>
-            </section>
-            <section>
-              <span>03 · 학습 정리</span>
-              <strong>판단 기준과 실천 방법을 정리해요.</strong>
-              <p>에피소드가 끝나면 점수 근거와 핵심 개념을 확인합니다.</p>
-            </section>
-          </div>
-
-          <p class="preview-footnote">학습 기록과 결과 리포트는 로그인한 계정에 저장됩니다.</p>
-        </section>
+        <div class="auth-visual" aria-hidden="true">
+          <img src="assets/episodes/episode-deepfake.png" alt="" fetchpriority="high" />
+        </div>
 
         <form class="login-card" id="loginForm">
-          <p class="eyebrow">twAIve</p>
-          <h1>AI 윤리 스토리</h1>
-          <p class="login-copy" id="authModeCopy">로그인 후 에피소드별 선택 기록과 학습 진행을 확인하세요.</p>
+          <header class="auth-heading">
+            <p class="eyebrow">twAIve</p>
+            <h1>AI 윤리 스토리</h1>
+            <p class="login-copy" id="authModeCopy">로그인</p>
+          </header>
 
           <button class="auth-back signup-only" id="showLoginButton" type="button" hidden>로그인으로 돌아가기</button>
 
           <label>
             <span>아이디</span>
             <span class="input-row">
-              <input id="usernameInput" name="username" type="text" autocomplete="username" required />
+              <input id="usernameInput" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
               <button class="check-button signup-only" id="checkUsernameButton" type="button" hidden>중복확인</button>
             </span>
           </label>
@@ -166,6 +144,6 @@
     <script src="js/analysis/learning-model.js?v=20261002-1"></script>
     <script src="js/analysis/demo-analytics.js?v=20261002-1"></script>
     <script src="js/scoring-engine.js?v=20261002-1"></script>
-    <script src="js/app.js?v=20261007-8"></script>
+    <script src="js/app.js?v=20261007-9"></script>
   </body>
 </html>
