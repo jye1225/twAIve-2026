@@ -2322,7 +2322,7 @@ async function applyRequestedReportRoute() {
   const params = new URLSearchParams(window.location.search);
   const requestedTab = params.get("report");
   const requestedEpisodeId = params.get("episode");
-  const validTabs = ["analysis", "ai", "concept"];
+  const validTabs = ["summary", "analysis", "ai", "concept"];
   if (!validTabs.includes(requestedTab) || !requestedEpisodeId) return false;
 
   const episodeIndex = episodes.findIndex((episode) => episode.id === requestedEpisodeId);
@@ -2684,7 +2684,7 @@ async function loadAllProgress() {
   try {
     ({ data, error } = await supabaseClient
       .from("user_episode_progress")
-        .select("episode_id, score, scores, history, assessment, completed, ending, updated_at")
+        .select("episode_id, scene_id, score, scores, history, feedback, story_mode, assessment, completed, ending, updated_at")
       .eq("user_id", currentUser.id));
   } catch (requestError) {
     state.feedback = supabaseConnectionMessage(requestError);
@@ -2757,9 +2757,12 @@ function saveEpisodeProgress() {
 
     state.progress[snapshot.episodeId] = {
       episode_id: snapshot.episodeId,
+      scene_id: snapshot.sceneId,
       score: snapshot.score,
       scores: snapshot.scores,
       history: snapshot.history,
+      feedback: snapshot.feedback,
+      story_mode: snapshot.storyMode,
       assessment: snapshot.assessment,
       completed: snapshot.completed,
       ending: snapshot.ending,
@@ -3062,7 +3065,7 @@ function renderDecisionReasons() {
     const status = document.createElement("div");
     status.className = "reason-options-status";
     status.setAttribute("role", "status");
-    status.innerHTML = "<strong>AI가 선택에 맞는 이유를 정리하고 있어요.</strong><span>장면과 방금 고른 선택만 전송하며, 잠시 지연되면 기본 이유 3개를 표시합니다.</span>";
+    status.innerHTML = "<strong>AI가 선택 이유를 정리하고 있어요.</strong><span>잠시만 기다려 주세요.</span>";
     els.choices.appendChild(status);
     return;
   }
@@ -3296,6 +3299,13 @@ function recordHtml() {
   const selectedEpisode = episodes.find((episode) => episode.id === state.recordEpisodeId) || activeEpisode();
   const selectedHistory = recordEpisodeHistory(selectedEpisode.id);
   const episodePicker = episodePickerHtml(selectedEpisode.id, "record");
+  const principleItems = ScoringEngine.scorePrinciples(
+    selectedEpisode.meters, selectedHistory, SCORING_VERSION, GUIDELINE_PRINCIPLES,
+  );
+  const score = ScoringEngine.average(principleItems.map((item) => item.score));
+  const hasScore = principleItems.some((item) => Number.isFinite(item.score));
+  const savedProgress = state.progress[selectedEpisode.id];
+  const hasSavedReport = Boolean(savedProgress?.completed && savedProgress.scores?._version === SCORING_VERSION);
 
   if (!selectedHistory.length) {
     return `
@@ -3309,6 +3319,13 @@ function recordHtml() {
 
   return `
     ${episodePicker}
+    <section class="record-score-summary" aria-label="에피소드 점수">
+      <div>
+        <span>이번 에피소드 점수</span>
+        <small>${hasSavedReport ? "학습 완료" : "진행 중"} · ${selectedHistory.length}개 선택</small>
+      </div>
+      <strong>${hasScore ? `${score}점` : "진단 전"}</strong>
+    </section>
     <div class="timeline-list">
       ${selectedHistory
         .map(
@@ -3336,7 +3353,38 @@ function recordHtml() {
         )
         .join("")}
     </div>
+    <button type="button" class="record-report-button" data-record-report="${escapeAttribute(selectedEpisode.id)}" ${hasSavedReport ? "" : "disabled"}>결과리포트 확인하기</button>
+    ${hasSavedReport ? "" : '<p class="record-report-note">에피소드를 완료하면 결과 리포트를 확인할 수 있어요.</p>'}
   `;
+}
+
+function openRecordedReport(episodeId) {
+  const episodeIndex = episodes.findIndex((episode) => episode.id === episodeId);
+  const progress = state.progress[episodeId];
+  if (episodeIndex < 0 || !progress?.completed || progress.scores?._version !== SCORING_VERSION) return;
+
+  clearTimeout(episodeIntroTimer);
+  episodeIntroTimer = null;
+  state.episodeIndex = episodeIndex;
+  const episode = activeEpisode();
+  state.sceneId = episode.scenes[progress.scene_id]?.end
+    ? progress.scene_id
+    : Object.keys(episode.scenes).find((key) => episode.scenes[key].end);
+  state.history = JSON.parse(JSON.stringify(progress.history || []));
+  state.assessments[episodeId] = JSON.parse(JSON.stringify(progress.assessment || {}));
+  refreshGuidelineScores();
+  state.feedback = progress.feedback || "";
+  state.pendingDecision = null;
+  state.view = "story";
+  state.storyMode = "report";
+  state.reportTab = "summary";
+  const url = new URL(window.location.href);
+  url.searchParams.set("report", "summary");
+  url.searchParams.set("episode", episodeId);
+  window.history.replaceState(null, "", url);
+  syncNav();
+  render();
+  els.sceneText.scrollTop = 0;
 }
 
 function learningHtml(id) {
@@ -3371,6 +3419,9 @@ function bindRecordActions() {
       state.recordEpisodeId = button.dataset.recordEpisode;
       render();
     });
+  });
+  document.querySelectorAll("[data-record-report]").forEach((button) => {
+    button.addEventListener("click", () => openRecordedReport(button.dataset.recordReport));
   });
 }
 
