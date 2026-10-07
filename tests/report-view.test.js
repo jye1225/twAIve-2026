@@ -14,6 +14,7 @@ const buttons = [];
 const context = {
   episodes, state, URL, URLSearchParams,
   window: {
+    open() { throw new Error("Report details must not open a new window"); },
     location: { href: "https://example.test/?report=analysis&episode=rumor", get search() { return new URL(this.href).search; } },
     history: { replaceState(_state, _title, url) { context.window.location.href = url.toString(); } },
   },
@@ -29,6 +30,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(
+  source.slice(source.indexOf("function openReportDetail("), source.indexOf("async function applyRequestedReportRoute(")) +
   source.slice(source.indexOf("async function applyRequestedReportRoute("), source.indexOf("function reportInsightsHtml(")) +
   source.slice(source.indexOf("function reportDetailTabsHtml("), source.indexOf("function reportOverviewHtml(")) +
   source.slice(source.indexOf("function renderChoices("), source.indexOf("function recordEpisodeHistory(")) +
@@ -41,6 +43,26 @@ async function main() {
   assert.equal(await context.applyRequestedReportRoute(), true);
   assert.equal(state.reportTab, "analysis");
   assert.equal(state.episodeIndex, 1);
+  state.reportTab = "summary";
+  state.history = [{ choice: "saved choice" }];
+  state.score = 86;
+  const savedHistory = state.history;
+  context.renderChoices({});
+  buttons.find(button => button.className.includes("report-detail-button")).click();
+  assert.equal(state.reportTab, "analysis");
+  assert.match(context.window.location.href, /report=analysis&episode=rumor/);
+  assert.equal(context.els.sceneText.scrollTop, 0);
+  assert.equal(state.history, savedHistory);
+  assert.equal(state.score, 86);
+  buttons.length = 0;
+  context.renderChoices({});
+  buttons[0].click();
+  assert.equal(state.reportTab, "summary");
+  assert.doesNotMatch(context.window.location.href, /report=/);
+  assert.equal(state.episodeIndex, 1);
+  assert.equal(state.history, savedHistory);
+  assert.equal(state.score, 86);
+  buttons.length = 0;
   for (const tab of ["analysis", "ai"]) {
     state.reportTab = tab;
     const html = context.reportDetailHtml(episodes[1], {});

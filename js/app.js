@@ -2328,12 +2328,15 @@ function bindReportActions() {
   });
 }
 
-function openReportDetailInNewTab() {
+function openReportDetail() {
+  state.reportTab = "analysis";
   const url = new URL(window.location.href);
   url.searchParams.delete("view");
   url.searchParams.set("report", "analysis");
   url.searchParams.set("episode", activeEpisode().id);
-  window.open(url.toString(), "_blank", "noopener");
+  window.history.replaceState({}, "", url);
+  render();
+  els.sceneText.scrollTop = 0;
 }
 
 async function applyRequestedReportRoute() {
@@ -3215,7 +3218,7 @@ function renderChoices(scene) {
     details.type = "button";
     details.className = "choice-button report-detail-button";
     details.innerHTML = "<span>분석 결과 자세히 보기</span>";
-    details.addEventListener("click", openReportDetailInNewTab);
+    details.addEventListener("click", openReportDetail);
     els.choices.appendChild(details);
     return;
   }
