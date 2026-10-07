@@ -2663,7 +2663,7 @@ body.is-game-home .app-shell {
   padding: var(--app-frame-padding);
   background:
     linear-gradient(rgba(13, 9, 18, 0.82), rgba(13, 9, 18, 0.92)),
-    url("../assets/episodes/episode-deepfake.png") center / cover fixed no-repeat;
+    url("../assets/episodes/episode-deepfake.webp") center / cover fixed no-repeat;
 }
 
 body.is-visual-novel .game-screen,
@@ -3230,7 +3230,7 @@ body.is-game-home .story-stage.is-home-stage {
   border-radius: 0;
   background:
     linear-gradient(rgba(22, 10, 28, 0.44), rgba(17, 8, 23, 0.84)),
-    url("../assets/episodes/episode-deepfake.png") center 34% / cover no-repeat;
+    url("../assets/episodes/episode-deepfake.webp") center 34% / cover no-repeat;
 }
 
 body.is-game-home .game-screen {
@@ -6802,6 +6802,90 @@ body.is-visual-novel .profile-teacher-entry button {
 
 @keyframes ai-search-spin {
   to { transform: rotate(360deg); }
+}
+
+.topbar {
+  position: relative;
+}
+
+body.is-visual-novel .topbar .user-menu,
+body.is-game-home .topbar .user-menu {
+  top: calc(100% + 4px);
+}
+
+.save-status:not([hidden]) {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  color: #f4dae9;
+  font-family: var(--font-dialogue);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.save-status[data-status="error"] {
+  color: #ffcf96;
+}
+
+.save-status button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 1px solid #e9a5d1;
+  border-radius: 5px;
+  color: #ffffff;
+  background: #74245f;
+  font: inherit;
+  cursor: pointer;
+}
+
+.login-card .auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #eee1ea;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.login-card .auth-consent input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: #aa3b94;
+}
+
+body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid rgba(255, 165, 221, 0.28);
+  border-radius: 5px;
+  color: #fff5fc;
+  background: #2a1e31;
+  font: inherit;
+  font-size: 14px;
+}
+
+body.is-visual-novel .is-assessment-dock .reason-choice {
+  min-height: 38px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+@media (max-width: 560px) {
+  .login-card input,
+  body.is-visual-novel .support-profile-form input,
+  body.is-visual-novel .story-stage.is-report-detail .ai-coach-input-row select {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 560px) {

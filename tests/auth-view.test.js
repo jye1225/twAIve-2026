@@ -22,7 +22,7 @@ const els = {
   usernameInput: { focus(options) { focusOptions = options; } },
 };
 const context = {
-  document: { body: { classList: {
+  document: { getElementById() { return {}; }, body: { classList: {
     add(...names) { names.forEach(name => classes.add(name)); },
     contains(name) { return classes.has(name); },
     toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); },
@@ -84,6 +84,6 @@ context.showLogin();
 assert.equal(els.authIntro.hidden, true);
 assert.equal(focusOptions.preventScroll, true);
 const html = fs.readFileSync("index.html", "utf8");
-assert.match(html, /class="auth-intro-logo"[^>]+src="assets\/twaive-logo.png"/);
+assert.match(html, /class="auth-intro-logo"[^>]+src="assets\/twaive-logo.webp"/);
 assert.doesNotMatch(html, /auth-intro-title|auth-intro-brand/);
 console.log("PASS: click-only logo splash, auth modes, session bypass, logout, and focus scroll prevention");

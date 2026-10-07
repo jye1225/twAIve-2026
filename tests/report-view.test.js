@@ -23,6 +23,7 @@ const context = {
   activeEpisode() { return episodes[state.episodeIndex]; },
   async loadEpisodeProgress() { return context.hasRecord; },
   syncNav() {}, render() {},
+  sessionContext() { return {}; }, sameSession() { return true; },
   guidelineDiagnosis() { return null; },
   aiCoachHtml() { return "AI panel"; },
   scoreBreakdownHtml() { return "Analysis panel"; },

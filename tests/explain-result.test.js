@@ -3,7 +3,7 @@ const { __test } = require("../api/explain-result.js");
 
 function samplePayload() {
   return {
-    question: "왜 투명성 점수가 낮나요?",
+    question: "왜 이 점수가 나왔나요?",
     episode: {
       title: "삭제되지 않은 얼굴",
       topic: "딥페이크 · 초상권",
@@ -39,8 +39,9 @@ assert.equal(normalized.choices.length, 12);
 assert.equal(normalized.analysis.reflectionDelta, null);
 
 const longQuestion = "가".repeat(300);
-const truncated = __test.normalizePayload({ ...samplePayload(), question: longQuestion });
-assert.equal(truncated.question.length, 240);
+assert.throws(() => __test.normalizePayload({ ...samplePayload(), question: longQuestion }), error => error.code === "INVALID_QUESTION");
+assert.throws(() => __test.normalizePayload({ ...samplePayload(), question: "친구의 이름은 민수야" }), error => error.code === "INVALID_QUESTION");
+assert.equal(__test.normalizePayload({ ...samplePayload(), question: "" }).question, "왜 이 점수가 나왔나요?");
 
 assert.throws(
   () => __test.normalizePayload({ principles: [] }),

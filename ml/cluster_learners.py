@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 MINIMUM_SAMPLES = 50
@@ -17,6 +18,7 @@ NUMERIC_FEATURES = PRINCIPLE_FEATURES + [
 ]
 CATEGORICAL_FEATURES = ["dominant_reason"]
 CONSENT = "analytics_consent"
+METADATA = ["learner_id", "completed", "scoring_version"]
 TEACHING_GUIDES = {
     "human_centeredness_score": "AI에게 맡길 일과 사람이 판단할 일을 구분하는 활동",
     "privacy_score": "개인정보 사용 전 동의 대상과 공개 범위를 확인하는 역할극",
@@ -42,19 +44,37 @@ def load_dependencies() -> None:
 
 
 def validate_dataset(frame: pd.DataFrame) -> pd.DataFrame:
-    required = set(NUMERIC_FEATURES + CATEGORICAL_FEATURES + [CONSENT])
+    required = set(NUMERIC_FEATURES + CATEGORICAL_FEATURES + [CONSENT] + METADATA)
     missing = sorted(required - set(frame.columns))
     if missing:
         raise ValueError(f"필수 열이 없습니다: {', '.join(missing)}")
     consented = frame[
-        frame[CONSENT].astype(str).str.lower().isin({"true", "1", "yes"})
+        frame[CONSENT].astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+        & frame["completed"].astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+        & (pd.to_numeric(frame["scoring_version"], errors="coerce") == 3)
     ].copy()
+    ids = consented["learner_id"].astype("string").str.strip()
+    if ids.isna().any() or (ids == "").any() or ids.duplicated().any():
+        raise ValueError("학습자별 익명 식별자가 필요하며 한 학습자는 한 행만 사용합니다.")
+    for column in NUMERIC_FEATURES:
+        values = pd.to_numeric(consented[column], errors="coerce")
+        if values.isna().any() or not values.map(math.isfinite).all():
+            raise ValueError(f"{column}: 비어 있지 않은 유한 숫자가 필요합니다.")
+        minimum, maximum = (0, 100) if column in PRINCIPLE_FEATURES else {
+            "average_response_seconds": (0, math.inf), "reflection_delta": (-4, 4),
+            "risk_rate": (0, 1), "proactive_rate": (0, 1),
+        }[column]
+        if not values.between(minimum, maximum).all():
+            raise ValueError(f"{column}: 허용 범위 {minimum}~{maximum}를 벗어났습니다.")
+        consented[column] = values
+    if not consented["dominant_reason"].isin({"rights", "verification", "action", "convenience", "social", "uncertain"}).all():
+        raise ValueError("dominant_reason은 정의된 판단 이유 코드여야 합니다.")
     if len(consented) < MINIMUM_SAMPLES:
         raise ValueError(
-            f"동의하고 분석 조건을 충족한 기록이 {len(consented)}건입니다. "
-            f"파일럿 기준 {MINIMUM_SAMPLES}건 전에는 군집분석을 실행하지 않습니다."
+            f"동의하고 완료한 독립 학습자가 {len(consented)}명입니다. "
+            f"파일럿 기준 {MINIMUM_SAMPLES}명 전에는 군집분석을 실행하지 않습니다."
         )
-    return consented
+    return consented[list(METADATA) + NUMERIC_FEATURES + CATEGORICAL_FEATURES + [CONSENT]]
 
 
 def preprocessing_pipeline() -> ColumnTransformer:
@@ -73,11 +93,19 @@ def preprocessing_pipeline() -> ColumnTransformer:
 
 
 def choose_cluster_count(matrix) -> int:
+    from numpy import unique
+    dense = matrix.toarray() if hasattr(matrix, "toarray") else matrix
+    distinct_count = len(unique(dense, axis=0))
+    if distinct_count < 2:
+        raise ValueError("서로 다른 응답 패턴이 부족해 군집을 만들 수 없습니다.")
     scored = []
-    for cluster_count in range(2, min(5, len(matrix) - 1) + 1):
+    for cluster_count in range(2, min(5, dense.shape[0] - 1, distinct_count) + 1):
         model = KMeans(n_clusters=cluster_count, n_init=20, random_state=42)
         labels = model.fit_predict(matrix)
-        scored.append((silhouette_score(matrix, labels), cluster_count))
+        if 2 <= len(set(labels)) < dense.shape[0]:
+            scored.append((silhouette_score(matrix, labels), cluster_count))
+    if not scored:
+        raise ValueError("군집 간 구분을 검증할 수 없는 응답 패턴입니다.")
     return max(scored)[1]
 
 
@@ -109,7 +137,7 @@ def analyze(data_path: Path, output_dir: Path) -> dict[str, object]:
     frame["cluster"] = model.fit_predict(matrix)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    frame.drop(columns=[CONSENT]).to_csv(
+    frame[NUMERIC_FEATURES + CATEGORICAL_FEATURES + ["cluster"]].to_csv(
         output_dir / "learner_clusters.csv", index=False, encoding="utf-8-sig"
     )
     result = {

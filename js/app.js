@@ -120,11 +120,11 @@ const APP_ROOT_URL =
 const episodeArtworkUrl = (filename) =>
   APP_ROOT_URL ? new URL(`assets/episodes/${filename}`, APP_ROOT_URL).href : `assets/episodes/${filename}`;
 const EPISODE_VISUALS = Object.freeze({
-  deepfake: episodeArtworkUrl("episode-deepfake.png"),
-  rumor: episodeArtworkUrl("episode-rumor.png"),
-  chatbot: episodeArtworkUrl("episode-chatbot.png"),
-  assignment: episodeArtworkUrl("episode-assignment.png"),
-  privacy: episodeArtworkUrl("episode-privacy.png"),
+  deepfake: episodeArtworkUrl("episode-deepfake.webp"),
+  rumor: episodeArtworkUrl("episode-rumor.webp"),
+  chatbot: episodeArtworkUrl("episode-chatbot.webp"),
+  assignment: episodeArtworkUrl("episode-assignment.webp"),
+  privacy: episodeArtworkUrl("episode-privacy.webp"),
 });
 const EPISODE_INTRO_DURATION = 1900;
 let episodeIntroTimer = null;
@@ -1092,6 +1092,7 @@ const state = {
   recordEpisodeId: episodes[0].id,
   learningEpisodeId: episodes[0].id,
   feedback: "",
+  loadIssue: null,
   view: "home",
   storyMode: "intro",
   reportTab: "summary",
@@ -1120,7 +1121,9 @@ const isSupabaseConfigured =
   !SUPABASE_CONFIG.url.includes("YOUR_SUPABASE") &&
   !SUPABASE_CONFIG.anonKey.includes("YOUR_SUPABASE");
 const supabaseClient = isSupabaseConfigured
-  ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+  ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+      global: { fetch: fetchWithDeadline },
+    })
   : null;
 const AI_EXPLANATION_API_URL = window.location.hostname === "kindarabbit.github.io"
   ? "https://twaive-2026.vercel.app/api/explain-result"
@@ -1129,6 +1132,120 @@ const AI_EXPLANATION_API_URL = window.location.hostname === "kindarabbit.github.
 let authMode = "login";
 let currentUser = null;
 let checkedUsername = "";
+let sessionVersion = 0;
+let episodeLoadVersion = 0;
+let transitionTimer = null;
+let aiExplanationController = null;
+let decisionReasonController = null;
+let saveSequence = 0;
+const initialLearningState = JSON.parse(JSON.stringify(state));
+const episodeSaveStates = new Map();
+
+async function fetchWithDeadline(input, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const sourceSignal = options.signal || input?.signal;
+  const cancel = () => controller.abort();
+  if (sourceSignal?.aborted) cancel();
+  else sourceSignal?.addEventListener("abort", cancel, { once: true });
+  const timer = window.setTimeout(cancel, timeoutMs);
+  try {
+    return await fetch(input, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+    sourceSignal?.removeEventListener("abort", cancel);
+  }
+}
+
+function sessionContext() {
+  return { version: sessionVersion, userId: currentUser?.id };
+}
+
+function sameSession(context) {
+  return context.version === sessionVersion && context.userId === currentUser?.id;
+}
+
+function cancelStoryWork() {
+  episodeLoadVersion += 1;
+  clearEpisodeIntroTimer();
+  window.clearTimeout(transitionTimer);
+  transitionTimer = null;
+  els.storyStage?.classList.remove("is-transitioning");
+  aiExplanationController?.abort();
+  aiExplanationController = null;
+  decisionReasonController?.abort();
+  decisionReasonController = null;
+}
+
+function resetSessionLearningState(user = null) {
+  sessionVersion += 1;
+  cancelStoryWork();
+  currentUser = user;
+  Object.assign(state, JSON.parse(JSON.stringify(initialLearningState)));
+  resetScores(activeEpisode());
+  decisionReasonCache.clear();
+  episodeSaveStates.clear();
+  episodeSaveQueue = Promise.resolve();
+  updateSaveStatus();
+}
+
+function updateSaveStatus() {
+  const region = document.getElementById("saveStatus");
+  if (!region) return;
+  const failed = [...episodeSaveStates.entries()].find(([, item]) => item.status === "error");
+  const episodeId = failed?.[0] || activeEpisode().id;
+  const item = failed?.[1] || episodeSaveStates.get(episodeId);
+  region.hidden = !currentUser || (!item && !state.loadIssue) || state.view === "teacher";
+  if (region.hidden) return;
+  if (state.loadIssue && !failed) {
+    region.dataset.status = "error";
+    region.replaceChildren();
+    appendTextElement(region, "span", "", "저장된 기록을 확인하지 못했어. 기존 기록을 보호하려고 시작을 멈췄어.");
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "다시 확인";
+    const issue = state.loadIssue;
+    const context = sessionContext();
+    retry.addEventListener("click", async () => {
+      if (Number.isInteger(issue.index)) await startEpisode(issue.index);
+      else { await loadAllProgress(); if (sameSession(context)) render(); }
+    });
+    region.appendChild(retry);
+    return;
+  }
+  const title = episodes.find(episode => episode.id === episodeId)?.title || "학습 기록";
+  region.dataset.status = item.status;
+  region.replaceChildren();
+  appendTextElement(region, "span", "", item.status === "saving"
+    ? "기록 저장 중…"
+    : item.status === "saved" ? "기록이 저장됐어."
+      : `${title}: 아직 저장되지 않았어. 연결을 확인하고 다시 시도해줘.`);
+  if (item.status === "error") {
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "다시 저장";
+    retry.addEventListener("click", () => persistEpisodeSnapshot(item.snapshot));
+    region.appendChild(retry);
+  }
+}
+
+function goHome() {
+  cancelStoryWork();
+  state.view = "home";
+  const url = new URL(window.location.href);
+  ["view", "report", "episode"].forEach(key => url.searchParams.delete(key));
+  window.history.replaceState({}, "", url);
+  syncNav();
+  render();
+}
+
+function replayEpisode() {
+  if (!window.confirm("다시 플레이하면 이 에피소드의 최신 기록과 결과가 새 선택으로 바뀌어. 다시 시작할까?")) return;
+  return startEpisode(state.episodeIndex, { loadSaved: false });
+}
+
+function hasUnsavedProgress() {
+  return Boolean(currentUser) && [...episodeSaveStates.values()].some(item => item.status !== "saved");
+}
 
 const els = {
   loginScreen: document.getElementById("loginScreen"),
@@ -1214,6 +1331,8 @@ function setAuthMode(mode) {
   });
   els.displayNameInput.required = isSignup;
   els.passwordConfirmInput.required = isSignup;
+  document.getElementById("signupAgeCheck").required = isSignup;
+  document.getElementById("signupTermsCheck").required = isSignup;
   els.authSubmitButton.textContent = isSignup ? "회원가입" : "로그인";
   els.authModeCopy.textContent = isSignup ? "회원가입" : "로그인";
   els.loginError.textContent = "";
@@ -1262,6 +1381,7 @@ function isValidUsername(username) {
 }
 
 async function loadSession() {
+  const authVersion = sessionVersion;
   if (!supabaseClient) {
     showLogin("Supabase 설정이 필요합니다. js/config/supabase-config.js에 URL과 anon key를 입력하세요.");
     return;
@@ -1272,31 +1392,32 @@ async function loadSession() {
   try {
     ({ data, error } = await supabaseClient.auth.getSession());
   } catch (requestError) {
+    if (authVersion !== sessionVersion) return;
     showLogin(supabaseConnectionMessage(requestError));
     return;
   }
 
+  if (authVersion !== sessionVersion) return;
   if (error) {
     showLogin(supabaseConnectionMessage(error));
     return;
   }
 
-  currentUser = data.session?.user || null;
+  if (authVersion !== sessionVersion) return;
+  resetSessionLearningState(data.session?.user || null);
+  const context = sessionContext();
   if (currentUser) {
-    const metadata = currentUser.user_metadata || {};
-    if (metadata.username) {
-      await saveProfile(
-        currentUser,
-        metadata.username,
-        metadata.display_name || metadata.username,
-      );
-    }
     await loadProfile();
+    if (!sameSession(context)) return;
     await loadAllProgress();
+    if (!sameSession(context)) return;
     await loadTeacherDashboard();
+    if (!sameSession(context)) return;
     const openedReport = await applyRequestedReportRoute();
+    if (!sameSession(context)) return;
     if (!openedReport) {
       await loadEpisodeProgress(state.episodeIndex);
+      if (!sameSession(context)) return;
       state.view = "home";
     }
     showApp();
@@ -1307,6 +1428,8 @@ async function loadSession() {
 }
 
 async function login(username, password) {
+  resetSessionLearningState();
+  const authVersion = sessionVersion;
   if (!supabaseClient) {
     showAuthError("Supabase 설정이 필요합니다.");
     return;
@@ -1320,22 +1443,31 @@ async function login(username, password) {
       password,
     }));
   } catch (requestError) {
+    if (authVersion !== sessionVersion) return;
     showAuthError(supabaseConnectionMessage(requestError));
     return;
   }
 
+  if (authVersion !== sessionVersion) return;
   if (error) {
     showAuthError("아이디 또는 비밀번호가 올바르지 않습니다.");
     return;
   }
 
-  currentUser = data.user;
+  if (authVersion !== sessionVersion) return;
+  resetSessionLearningState(data.user);
+  const context = sessionContext();
   await loadProfile();
+  if (!sameSession(context)) return;
   await loadAllProgress();
+  if (!sameSession(context)) return;
   await loadTeacherDashboard();
+  if (!sameSession(context)) return;
   const openedReport = await applyRequestedReportRoute();
+  if (!sameSession(context)) return;
   if (!openedReport) {
     await loadEpisodeProgress(state.episodeIndex);
+    if (!sameSession(context)) return;
     state.view = "home";
   }
   showApp();
@@ -1343,6 +1475,7 @@ async function login(username, password) {
 }
 
 async function loadProfile() {
+  const context = sessionContext();
   if (!supabaseClient || !currentUser) {
     state.profile = null;
     return null;
@@ -1354,22 +1487,24 @@ async function loadProfile() {
     ({ data, error } = await supabaseClient
       .from("profiles")
       .select("username, auth_email, display_name, created_at, analytics_consent")
-      .eq("id", currentUser.id)
+      .eq("id", context.userId)
       .maybeSingle());
     if (error && /analytics_consent/i.test(error.message || "")) {
       ({ data, error } = await supabaseClient
         .from("profiles")
         .select("username, auth_email, display_name, created_at")
-        .eq("id", currentUser.id)
+        .eq("id", context.userId)
         .maybeSingle());
       if (data) data.analytics_consent = false;
     }
   } catch (requestError) {
+    if (!sameSession(context)) return null;
     showAuthError(supabaseConnectionMessage(requestError));
     state.profile = null;
     return null;
   }
 
+  if (!sameSession(context)) return null;
   if (error) {
     showAuthError(`프로필을 불러오지 못했습니다: ${error.message}`);
     state.profile = null;
@@ -1385,6 +1520,7 @@ function setTeacherNavigation() {
 }
 
 async function loadTeacherDashboard(options = {}) {
+  const context = sessionContext();
   if (!supabaseClient || !currentUser) {
     state.teacherDashboard = { authorized: false, status: "idle", data: null, error: "" };
     setTeacherNavigation(false);
@@ -1400,6 +1536,7 @@ async function loadTeacherDashboard(options = {}) {
   try {
     ({ data, error } = await supabaseClient.rpc("get_teacher_dashboard"));
   } catch (requestError) {
+    if (!sameSession(context)) return null;
     state.teacherDashboard = {
       authorized: false,
       status: "error",
@@ -1411,6 +1548,7 @@ async function loadTeacherDashboard(options = {}) {
     return null;
   }
 
+  if (!sameSession(context)) return null;
   if (error) {
     const unavailable = error.code === "42501" || /teacher access required|permission denied/i.test(error.message || "");
     state.teacherDashboard = {
@@ -1424,7 +1562,9 @@ async function loadTeacherDashboard(options = {}) {
     return null;
   }
 
-  state.teacherDashboard = { authorized: true, status: "ready", data, error: "" };
+  state.teacherDashboard = data?.scoringVersion === SCORING_VERSION
+    ? { authorized: true, status: "ready", data, error: "" }
+    : { authorized: true, status: "error", data: null, error: "점수 버전 3의 집계 설정이 필요합니다. 최신 supabase/schema.sql을 운영 DB에 적용해주세요." };
   setTeacherNavigation(true);
   if (options.render) render();
   return data;
@@ -1493,6 +1633,10 @@ function checkPasswordMatch() {
 }
 
 async function signup(username, displayName, password, passwordConfirm) {
+  if (!document.getElementById("signupAgeCheck").checked || !document.getElementById("signupTermsCheck").checked) {
+    showAuthError("만 14세 이상 확인과 이용약관·개인정보 처리 동의가 필요해요.");
+    return;
+  }
   if (!supabaseClient) {
     showAuthError("Supabase 설정이 필요합니다.");
     return;
@@ -1510,7 +1654,7 @@ async function signup(username, displayName, password, passwordConfirm) {
   }
 
   if (!displayName.trim()) {
-    showAuthError("이름을 입력하세요.");
+    showAuthError("실명 대신 사용할 별명을 입력해줘.");
     return;
   }
 
@@ -1526,6 +1670,7 @@ async function signup(username, displayName, password, passwordConfirm) {
 
   let data;
   let error;
+  const authVersion = ++sessionVersion;
   try {
     ({ data, error } = await supabaseClient.auth.signUp({
       email: usernameToAuthEmail(username),
@@ -1534,6 +1679,9 @@ async function signup(username, displayName, password, passwordConfirm) {
         data: {
           username,
           display_name: displayName,
+          age_over_14: true,
+          terms_version: "2026-10-08",
+          terms_accepted_at: new Date().toISOString(),
         },
       },
     }));
@@ -1547,19 +1695,24 @@ async function signup(username, displayName, password, passwordConfirm) {
     return;
   }
 
-  currentUser = data.user;
+  if (authVersion !== sessionVersion) return;
   if (!data.session) {
     showLogin("회원가입이 완료되었습니다. 로그인해 주세요.");
     return;
   }
-
+  resetSessionLearningState(data.user);
+  const context = sessionContext();
   await saveProfile(currentUser, username, displayName);
+  if (!sameSession(context)) return;
   await loadProfile();
+  if (!sameSession(context)) return;
   showApp();
   render();
 }
 
 async function saveProfile(user, username, displayName) {
+  const context = sessionContext();
+  if (context.userId !== user.id) return;
   let error;
   try {
     ({ error } = await supabaseClient.from("profiles").upsert({
@@ -1569,16 +1722,19 @@ async function saveProfile(user, username, displayName) {
       display_name: displayName,
     }));
   } catch (requestError) {
+    if (!sameSession(context)) return;
     showAuthError(supabaseConnectionMessage(requestError));
     return;
   }
 
+  if (!sameSession(context)) return;
   if (error) {
     showAuthError("프로필 저장 중 오류가 발생했습니다. Supabase SQL 설정을 확인하세요.");
   }
 }
 
 async function updateProfileSettings(displayName, analyticsConsent) {
+  const context = sessionContext();
   if (!supabaseClient || !currentUser) {
     state.feedback = "로그인이 필요합니다.";
     render();
@@ -1587,7 +1743,7 @@ async function updateProfileSettings(displayName, analyticsConsent) {
 
   const nextName = displayName.trim();
   if (!nextName) {
-    state.feedback = "이름을 입력하세요.";
+    state.feedback = "별명을 입력해줘.";
     render();
     return;
   }
@@ -1598,52 +1754,67 @@ async function updateProfileSettings(displayName, analyticsConsent) {
     ({ error } = await supabaseClient
       .from("profiles")
       .update({ display_name: nextName, analytics_consent: Boolean(analyticsConsent) })
-      .eq("id", currentUser.id));
+      .eq("id", context.userId));
     if (error && /analytics_consent/i.test(error.message || "")) {
       consentSaved = false;
       ({ error } = await supabaseClient
         .from("profiles")
         .update({ display_name: nextName })
-        .eq("id", currentUser.id));
+        .eq("id", context.userId));
     }
   } catch (requestError) {
+    if (!sameSession(context)) return;
     state.feedback = supabaseConnectionMessage(requestError);
     render();
     return;
   }
 
+  if (!sameSession(context)) return;
   if (error) {
     state.feedback = `프로필 수정 오류: ${error.message}`;
     render();
     return;
   }
 
-  await supabaseClient.auth.updateUser({
-    data: {
-      ...currentUser.user_metadata,
-      display_name: nextName,
-    },
-  });
+  try {
+    const result = await supabaseClient.auth.updateUser({ data: { ...currentUser.user_metadata, display_name: nextName } });
+    if (!sameSession(context)) return;
+    if (result.error) {
+      state.feedback = "프로필은 저장했지만 로그인 정보 갱신을 확인하지 못했어. 다시 로그인해줘.";
+      render();
+      return;
+    }
+  } catch (error) {
+    if (!sameSession(context)) return;
+    state.feedback = "프로필은 저장했지만 로그인 정보 갱신을 확인하지 못했어. 다시 로그인해줘.";
+    render();
+    return;
+  }
 
   await loadProfile();
+  if (!sameSession(context)) return;
   state.feedback = consentSaved
     ? "프로필과 연구 데이터 동의 설정이 수정되었습니다."
-    : "이름은 저장했지만 연구 동의 저장에는 최신 Supabase SQL 설정이 필요합니다.";
+    : "별명은 저장했지만 연구 동의 저장에는 최신 Supabase SQL 설정이 필요합니다.";
   showApp();
   render();
 }
 
 async function logout() {
-  if (supabaseClient) {
-    await supabaseClient.auth.signOut();
-  }
-  currentUser = null;
-  state.profile = null;
-  state.progress = {};
-  state.teacherDashboard = { authorized: false, status: "idle", data: null, error: "" };
-  state.teacherDashboardMode = "actual";
+  if (hasUnsavedProgress() && !window.confirm("아직 저장을 확인하지 못한 기록이 있어. 로그아웃하면 저장되지 않은 내용은 사라질 수 있어. 계속할까?")) return;
+  els.authSubmitButton.disabled = true;
+  resetSessionLearningState();
+  const context = sessionContext();
   setTeacherNavigation(false);
   showLogin();
+  try {
+    const result = await supabaseClient?.auth.signOut();
+    if (sameSession(context) && result?.error) showAuthError("로그아웃 연결을 확인해줘. 공용 기기라면 이 탭을 닫아줘.");
+  } catch (error) {
+    if (sameSession(context)) showAuthError("로그아웃 연결을 확인해줘. 공용 기기라면 이 탭을 닫아줘.");
+  } finally {
+    if (sameSession(context)) els.authSubmitButton.disabled = false;
+  }
 }
 
 function activeEpisode() {
@@ -1746,8 +1917,12 @@ function transitionToScene(action, selectedButton) {
     button.disabled = true;
   });
   selectedButton?.classList.add("is-selected");
-  window.setTimeout(() => {
+  const context = sessionContext();
+  const episodeId = activeEpisode().id;
+  transitionTimer = window.setTimeout(() => {
+    transitionTimer = null;
     els.storyStage.classList.remove("is-transitioning");
+    if (!sameSession(context) || state.view !== "story" || activeEpisode().id !== episodeId) return;
     action();
   }, 180);
 }
@@ -1961,7 +2136,7 @@ function learnerAnalysisHtml(analysis, options = {}) {
       <details class="analysis-model-details">
         <summary>분석 모델이 판단한 과정</summary>
         <ol>${model.trace.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
-        <p>모델 v${escapeHtml(model.version)} · 특징 추출 ${escapeHtml(model.modules.featureExtractor)} · 유형 분류 ${escapeHtml(model.modules.learnerClassifier)} · 추천 ${escapeHtml(model.modules.contentRecommender)} · 데이터 신뢰도 ${escapeHtml(model.confidence.band)} ${model.confidence.score}%</p>
+        <p>모델 v${escapeHtml(model.version)} · 특징 추출 ${escapeHtml(model.modules.featureExtractor)} · 유형 분류 ${escapeHtml(model.modules.learnerClassifier)} · 추천 ${escapeHtml(model.modules.contentRecommender)} · 기록 충분도 ${escapeHtml(model.confidence.band)} ${model.confidence.score}% (분류 정확도가 아니에요.)</p>
       </details>
     `
     : "";
@@ -1969,7 +2144,7 @@ function learnerAnalysisHtml(analysis, options = {}) {
   return `
     <section class="learning-analysis" aria-label="선택 데이터 분석">
       <div class="section-title">
-        <span>선택 데이터 분석</span>
+        <span>이번 선택의 연습 포인트</span>
         <strong>${escapeHtml(analysis.profile.name)}</strong>
       </div>
       <p class="analysis-description">${escapeHtml(analysis.profile.description)}</p>
@@ -1982,7 +2157,7 @@ function learnerAnalysisHtml(analysis, options = {}) {
       <p class="analysis-reason"><span>가장 많이 기록한 판단 기준</span><strong>${escapeHtml(analysis.dominantReason?.label || "아직 기록 없음")}</strong></p>
       ${reasonRows ? `<ul class="reason-distribution">${reasonRows}</ul>` : ""}
       ${modelDetails}
-      <p class="analysis-note">데이터 신뢰도 ${escapeHtml(model?.confidence.band || analysis.confidence)} · ${analysis.attemptCount}회차 기록 · 교육용 규칙 기반 분석이며 심리검사가 아닙니다.</p>
+      <p class="analysis-note">기록 충분도 ${escapeHtml(model?.confidence.band || analysis.confidence)} · ${analysis.attemptCount}회차 기록 · 이번 선택만 분석한 학습용 결과야. 성격이나 마음 상태를 판단하는 검사는 아니야.</p>
     </section>
   `;
 }
@@ -2053,7 +2228,7 @@ function resultSnapshotHtml() {
           <b>${analysis.decisionCount}개 선택 분석</b>
         </article>
       </div>
-      <p class="snapshot-diagnosis"><strong>한 줄 진단</strong><span>${escapeHtml(analysis.profile.description)}</span></p>
+      <p class="snapshot-diagnosis"><strong>다음 연습 포인트</strong><span>${escapeHtml(analysis.profile.description)}</span></p>
     </section>
   `;
 }
@@ -2083,14 +2258,14 @@ function aiCoachHtml() {
         </div>
       </div>
       <form class="ai-coach-form" id="aiCoachForm">
-        <label for="aiQuestionInput">궁금한 점 <small>선택 입력</small></label>
+        <label for="aiQuestionInput">궁금한 점</label>
         <div class="ai-coach-input-row">
-          <input
+          <select
             id="aiQuestionInput"
-            type="text"
-            maxlength="240"
-            placeholder="예: 왜 투명성 점수가 낮게 나왔나요?"
-          />
+            aria-label="결과에 관해 궁금한 점"
+          >
+            ${["왜 이 점수가 나왔나요?", "가장 부족한 윤리 원칙은 무엇인가요?", "제 선택에서 잘한 점은 무엇인가요?", "다음에는 어떻게 판단하면 좋을까요?"].map(question => `<option>${escapeHtml(question)}</option>`).join("")}
+          </select>
           <button
             id="aiExplainButton"
             type="submit"
@@ -2110,7 +2285,7 @@ function aiCoachHtml() {
           </div>
         </div>
       </form>
-      <p class="ai-data-note">이름과 아이디는 AI에게 보내지 않아.</p>
+      <p class="ai-data-note">AI는 스토리 속 선택만 설명해. 별명·아이디는 보내지 않고, 개인적인 상담은 하지 않아.</p>
       <div class="ai-coach-output" id="aiCoachOutput" aria-live="polite" hidden></div>
     </section>
   `;
@@ -2176,7 +2351,7 @@ function appendExplanationList(parent, title, items) {
   parent.appendChild(section);
 }
 
-function renderAiExplanation(data) {
+function renderAiExplanation(data, result = { score: scoreAverage(), ending: endingName() }) {
   const output = document.getElementById("aiCoachOutput");
   if (!output) return;
 
@@ -2189,7 +2364,7 @@ function renderAiExplanation(data) {
   const overview = document.createElement("section");
   overview.className = "ai-explanation-section ai-explanation-overview";
   appendTextElement(overview, "h5", "", "한눈에 보기");
-  appendTextElement(overview, "p", "ai-explanation-result", `${scoreAverage()}점 · ${endingName().split(" · ").pop()}`);
+  appendTextElement(overview, "p", "ai-explanation-result", `${result.score}점 · ${result.ending.split(" · ").pop()}`);
   appendTextElement(overview, "strong", "ai-explanation-summary", data.explanation.summary);
   output.appendChild(overview);
 
@@ -2227,7 +2402,7 @@ function renderAiExplanation(data) {
       grid.appendChild(link);
     });
     videoSection.appendChild(grid);
-  } else {
+  } else if (data.videoSearchUrl) {
     const searchLink = document.createElement("a");
     searchLink.className = "ai-video-search";
     searchLink.href = data.videoSearchUrl;
@@ -2236,6 +2411,7 @@ function renderAiExplanation(data) {
     searchLink.textContent = "YouTube에서 관련 영상 검색하기";
     videoSection.appendChild(searchLink);
   }
+  appendTextElement(videoSection, "p", "ai-data-note", "외부 영상은 내용과 출처를 믿을 만한 어른과 함께 확인해줘.");
   output.appendChild(videoSection);
 }
 
@@ -2256,8 +2432,18 @@ async function requestAiExplanation(event) {
   const output = document.getElementById("aiCoachOutput");
   const suggestionButtons = document.querySelectorAll(".ai-question-suggestion");
   if (!button || !input || !output) return;
+  const context = sessionContext();
+  const payload = buildAiExplanationPayload(input.value.trim());
+  const controller = new AbortController();
+  aiExplanationController?.abort();
+  aiExplanationController = controller;
+  const isCurrent = () => sameSession(context) && aiExplanationController === controller &&
+    document.getElementById("aiCoachOutput") === output;
+  let timedOut = false;
+  const timeoutId = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45000);
 
   if (window.location.protocol === "file:") {
+    window.clearTimeout(timeoutId);
     showAiCoachError("AI 설명은 배포된 사이트에서 이용할 수 있습니다. 로컬 파일 화면에서는 서버 API가 실행되지 않습니다.");
     return;
   }
@@ -2278,6 +2464,7 @@ async function requestAiExplanation(event) {
       throw new Error("Supabase 연결 설정을 확인해주세요.");
     }
     const { data, error } = await supabaseClient.auth.getSession();
+    if (!isCurrent()) return;
     if (error || !data.session?.access_token) {
       throw new Error("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
     }
@@ -2288,24 +2475,27 @@ async function requestAiExplanation(event) {
         Authorization: `Bearer ${data.session.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(buildAiExplanationPayload(input.value.trim())),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
     });
     const responseData = await response.json().catch(() => ({}));
+    if (!isCurrent()) return;
     if (!response.ok) {
       if (responseData.code === "SERVER_NOT_CONFIGURED") {
         throw new Error("배포 서버의 OpenAI 또는 Supabase 환경변수 설정이 필요합니다.");
       }
       throw new Error(responseData.message || "AI 설명 서버에 연결하지 못했습니다.");
     }
-    renderAiExplanation(responseData);
+    renderAiExplanation(responseData, { score: payload.score, ending: payload.ending });
     const tabsHeight = document.querySelector(".report-detail-tabs")?.getBoundingClientRect().height || 0;
     els.sceneText.scrollTo({
       top: els.sceneText.scrollTop + output.getBoundingClientRect().top - els.sceneText.getBoundingClientRect().top - tabsHeight - 12,
       behavior: "smooth",
     });
   } catch (error) {
-    showAiCoachError(error.message || "잠시 후 다시 시도해주세요.");
+    if (isCurrent()) showAiCoachError(timedOut ? "답변이 늦어지고 있어. 잠시 후 다시 눌러줘." : error.message || "잠시 후 다시 시도해주세요.");
   } finally {
+    window.clearTimeout(timeoutId);
     output.removeAttribute("aria-busy");
     button.disabled = false;
     suggestionButtons.forEach((suggestionButton) => {
@@ -2313,6 +2503,7 @@ async function requestAiExplanation(event) {
     });
     button.setAttribute("aria-label", "AI 설명 받기");
     button.setAttribute("title", "AI 설명 받기");
+    if (aiExplanationController === controller) aiExplanationController = null;
   }
 }
 
@@ -2357,6 +2548,7 @@ function openReportDetail() {
 }
 
 async function applyRequestedReportRoute() {
+  const context = sessionContext();
   const params = new URLSearchParams(window.location.search);
   const requestedTab = params.get("report");
   const requestedEpisodeId = params.get("episode");
@@ -2370,6 +2562,7 @@ async function applyRequestedReportRoute() {
 
   state.episodeIndex = episodeIndex;
   const loaded = await loadEpisodeProgress(episodeIndex);
+  if (!sameSession(context) || state.episodeIndex !== episodeIndex) return false;
   if (isLearningRoute) {
     setLearningView(requestedEpisodeId);
     return true;
@@ -2666,7 +2859,7 @@ function overallDiagnosis(completedCount, averageScore) {
     return "아직 진단할 학습 기록이 없습니다.";
   }
   if (completedCount < episodes.length) {
-    return "일부 주제 학습이 진행 중입니다. 남은 에피소드를 완료하면 진단이 더 정확해집니다.";
+    return "일부 주제 학습이 진행 중입니다. 남은 에피소드를 완료하면 더 다양한 선택을 돌아볼 수 있어요.";
   }
   if (averageScore >= 75) {
     return "AI를 사용할 때 권리, 검증, 책임을 함께 고려하는 균형형 학습자입니다.";
@@ -2681,6 +2874,8 @@ function overallDiagnosis(completedCount, averageScore) {
 }
 
 async function loadEpisodeProgress(index) {
+  const context = sessionContext();
+  const loadVersion = ++episodeLoadVersion;
   if (!supabaseClient || !currentUser) {
     return false;
   }
@@ -2692,18 +2887,23 @@ async function loadEpisodeProgress(index) {
     ({ data, error } = await supabaseClient
       .from("user_episode_progress")
       .select("scene_id, scores, history, feedback, story_mode, assessment")
-      .eq("user_id", currentUser.id)
+      .eq("user_id", context.userId)
       .eq("episode_id", episode.id)
       .maybeSingle());
   } catch (requestError) {
+    if (!sameSession(context) || loadVersion !== episodeLoadVersion) return false;
     state.feedback = supabaseConnectionMessage(requestError);
-    return false;
+    state.loadIssue = { index };
+    return null;
   }
 
+  if (!sameSession(context) || loadVersion !== episodeLoadVersion || state.episodeIndex !== index) return false;
   if (error) {
     state.feedback = `기록 불러오기 오류: ${error.message}`;
-    return false;
+    state.loadIssue = { index };
+    return null;
   }
+  if (state.loadIssue?.index === index) state.loadIssue = null;
 
   if (!data) {
     return false;
@@ -2726,6 +2926,7 @@ async function loadEpisodeProgress(index) {
 }
 
 async function loadAllProgress() {
+  const context = sessionContext();
   if (!supabaseClient || !currentUser) {
     state.progress = {};
     return;
@@ -2737,16 +2938,21 @@ async function loadAllProgress() {
     ({ data, error } = await supabaseClient
       .from("user_episode_progress")
         .select("episode_id, scene_id, score, scores, history, feedback, story_mode, assessment, completed, ending, updated_at")
-      .eq("user_id", currentUser.id));
+      .eq("user_id", context.userId));
   } catch (requestError) {
+    if (!sameSession(context)) return;
     state.feedback = supabaseConnectionMessage(requestError);
+    state.loadIssue = { index: null };
     return;
   }
 
+  if (!sameSession(context)) return;
   if (error) {
     state.feedback = `학습 성과 불러오기 오류: ${error.message}`;
+    state.loadIssue = { index: null };
     return;
   }
+  if (state.loadIssue?.index === null) state.loadIssue = null;
 
   state.progress = Object.fromEntries(
     (data || [])
@@ -2757,12 +2963,14 @@ async function loadAllProgress() {
 
 function saveEpisodeProgress() {
   if (!supabaseClient || !currentUser) {
-    return Promise.resolve(true);
+    return Promise.resolve(false);
   }
 
   const episode = activeEpisode();
   const scene = activeScene();
   const snapshot = {
+    session: sessionContext(),
+    sequence: ++saveSequence,
     userId: currentUser.id,
     episodeId: episode.id,
     sceneId: state.sceneId,
@@ -2772,12 +2980,20 @@ function saveEpisodeProgress() {
     feedback: state.feedback,
     storyMode: state.storyMode,
     assessment: JSON.parse(JSON.stringify(state.assessments[episode.id] || {})),
-    completed: Boolean(scene.end),
+    completed: Boolean(scene.end && state.assessments[episode.id]?.post),
     ending: scene.end ? endingName() : null,
     updatedAt: new Date().toISOString(),
   };
 
+  return persistEpisodeSnapshot(snapshot);
+}
+
+function persistEpisodeSnapshot(snapshot) {
+  if (!sameSession(snapshot.session)) return Promise.resolve(false);
+  episodeSaveStates.set(snapshot.episodeId, { status: "saving", snapshot });
+  updateSaveStatus();
   const persistSnapshot = async () => {
+    if (!sameSession(snapshot.session)) return false;
     let error;
     try {
       ({ error } = await supabaseClient.from("user_episode_progress").upsert(
@@ -2798,12 +3014,15 @@ function saveEpisodeProgress() {
         { onConflict: "user_id,episode_id" },
       ));
     } catch (requestError) {
-      state.feedback = supabaseConnectionMessage(requestError);
-      return false;
+      error = requestError;
     }
-
+    if (!sameSession(snapshot.session)) return false;
+    const latest = episodeSaveStates.get(snapshot.episodeId)?.snapshot.sequence === snapshot.sequence;
     if (error) {
-      state.feedback = `기록 저장 오류: ${error.message}`;
+      if (latest) {
+        episodeSaveStates.set(snapshot.episodeId, { status: "error", snapshot });
+        updateSaveStatus();
+      }
       return false;
     }
 
@@ -2820,6 +3039,11 @@ function saveEpisodeProgress() {
       ending: snapshot.ending,
       updated_at: snapshot.updatedAt,
     };
+    if (els.scoreLabel) els.scoreLabel.innerHTML = scoreBadgeHtml();
+    if (latest) {
+      episodeSaveStates.set(snapshot.episodeId, { status: "saved", snapshot });
+      updateSaveStatus();
+    }
     return true;
   };
 
@@ -2828,6 +3052,9 @@ function saveEpisodeProgress() {
 }
 
 async function startEpisode(index, options = {}) {
+  cancelStoryWork();
+  const context = sessionContext();
+  const loadVersion = episodeLoadVersion;
   const episodeId = episodes[index].id;
   const previousAssessment = state.assessments[episodeId] || state.progress[episodeId]?.assessment || {};
   state.episodeIndex = index;
@@ -2850,7 +3077,11 @@ async function startEpisode(index, options = {}) {
   }
   resetScores(episodes[index]);
   if (options.loadSaved !== false) {
+    await episodeSaveQueue;
+    if (!sameSession(context) || state.episodeIndex !== index || episodeLoadVersion !== loadVersion) return;
     const loaded = await loadEpisodeProgress(index);
+    if (!sameSession(context) || state.episodeIndex !== index || episodeLoadVersion !== loadVersion + 1) return;
+    if (loaded === null) { goHome(); return; }
     if (loaded) {
       const resumableModes = ["pre", "story", "post", "report"];
       state.introNextMode = resumableModes.includes(state.storyMode)
@@ -2868,9 +3099,6 @@ async function startEpisode(index, options = {}) {
   state.sceneStartedAt = null;
   syncNav();
   render();
-  if (options.saveReset) {
-    await saveEpisodeProgress();
-  }
 }
 
 function queueChoice(choice, choiceIndex) {
@@ -2902,20 +3130,18 @@ function decisionReasonCacheKey(decision = state.pendingDecision) {
 }
 
 function fallbackDecisionReasons(decision) {
-  const choice = String(decision?.choice || "이 선택").trim();
-  const shortChoice = choice.length > 34 ? `${choice.slice(0, 34)}…` : choice;
   return [
     {
       code: "rights",
-      label: `“${shortChoice}”가 당사자한테 가장 덜 피해를 줄 것 같아서`,
+      label: "당사자의 입장과 감정이 먼저 떠올라서",
     },
     {
       code: "convenience",
-      label: "지금 바로 할 수 있고 가장 현실적인 방법 같아서",
+      label: "지금 내가 하기 쉬운 행동이라서",
     },
     {
       code: "social",
-      label: "친구들이랑 관계도 생각하면서 문제를 풀 수 있을 것 같아서",
+      label: "친구들의 반응과 관계가 신경 쓰여서",
     },
   ];
 }
@@ -2933,16 +3159,21 @@ function normalizeDecisionReasons(items) {
 }
 
 async function fetchDecisionReasons(decision) {
+  const context = sessionContext();
+  const episode = activeEpisode();
+  const sceneText = activeScene().text;
   if (window.location.protocol === "file:" || !supabaseClient) {
     throw new Error("AI 이유 추천을 이용할 수 없는 환경입니다.");
   }
 
   const { data, error } = await supabaseClient.auth.getSession();
+  if (!sameSession(context) || state.pendingDecision !== decision) throw new Error("취소된 요청입니다.");
   if (error || !data.session?.access_token) {
     throw new Error("로그인 정보가 만료되었습니다.");
   }
 
   const controller = new AbortController();
+  decisionReasonController = controller;
   const timeoutId = window.setTimeout(() => controller.abort(), 10000);
   try {
     const response = await fetch(AI_EXPLANATION_API_URL, {
@@ -2954,13 +3185,13 @@ async function fetchDecisionReasons(decision) {
       body: JSON.stringify({
         task: "reason_options",
         episode: {
-          title: activeEpisode().title,
-          topic: activeEpisode().topic,
-          concept: activeEpisode().assessment.concept,
+          title: episode.title,
+          topic: episode.topic,
+          concept: episode.assessment.concept,
         },
         scene: {
           title: decision.scene,
-          text: activeScene().text,
+          text: sceneText,
         },
         choice: decision.choice,
       }),
@@ -2977,10 +3208,12 @@ async function fetchDecisionReasons(decision) {
     return reasons;
   } finally {
     window.clearTimeout(timeoutId);
+    if (decisionReasonController === controller) decisionReasonController = null;
   }
 }
 
 async function loadDecisionReasons() {
+  const context = sessionContext();
   const decision = state.pendingDecision;
   const cacheKey = decisionReasonCacheKey(decision);
   if (!decision || !cacheKey) return;
@@ -2996,18 +3229,18 @@ async function loadDecisionReasons() {
 
   try {
     const reasons = await fetchDecisionReasons(decision);
-    if (decisionReasonCacheKey() !== cacheKey) return;
+    if (!sameSession(context) || state.pendingDecision !== decision || decisionReasonCacheKey() !== cacheKey) return;
     decisionReasonCache.set(cacheKey, reasons);
     state.decisionReasons = reasons;
     state.decisionReasonStatus = "ready";
     state.decisionReasonSource = "ai";
   } catch (error) {
-    if (decisionReasonCacheKey() !== cacheKey) return;
+    if (!sameSession(context) || state.pendingDecision !== decision || decisionReasonCacheKey() !== cacheKey) return;
     state.decisionReasons = fallbackDecisionReasons(decision);
     state.decisionReasonStatus = "ready";
     state.decisionReasonSource = "fallback";
   }
-  render();
+  if (state.view === "story" && state.storyMode === "reason") render();
 }
 
 async function applyDecisionReason(reason) {
@@ -3023,6 +3256,7 @@ async function applyDecisionReason(reason) {
     rubric: decision.rubric,
     reasonCode: reason.code,
     reasonLabel: reason.label,
+    reasonSource: reason.code === "uncertain" ? "uncertain" : state.decisionReasonSource,
     responseTimeMs: decision.responseTimeMs,
     answeredAt: new Date().toISOString(),
   });
@@ -3052,7 +3286,7 @@ function endingName() {
   if (!state.history.length) return "진단 전";
   if (avg >= 75) return "Good End · 책임 있는 실천";
   if (avg >= 50) return "Normal End · 기준을 배우는 중";
-  return "Bad End · 다시 점검 필요";
+  return "다시 연습 · 다음에는 다르게 해보기";
 }
 
 function endingClassName() {
@@ -3089,9 +3323,9 @@ function episodeProgressLabel(episode) {
     return "시작 전";
   }
   if (progress.completed) {
-    return `${progress.ending || "완료"} · ${progress.score || "-"}점`;
+    return `${progress.ending || "완료"} · ${progress.score ?? "-"}점`;
   }
-  return `${progress.score || "-"}점 · 진행 기록 있음`;
+  return `${progress.score ?? "-"}점 · 진행 기록 있음`;
 }
 
 function answerKeywordHtml(option) {
@@ -3122,9 +3356,10 @@ function renderDecisionReasons() {
     return;
   }
 
-  const reasons = state.decisionReasons.length === 3
+  const recommended = state.decisionReasons.length === 3
     ? state.decisionReasons
     : fallbackDecisionReasons(state.pendingDecision);
+  const reasons = [...recommended.filter(reason => reason.code !== "uncertain"), { code: "uncertain", label: "맞는 이유가 없거나 아직 잘 모르겠어" }];
   reasons.forEach((reason, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -3220,7 +3455,7 @@ function renderChoices(scene) {
     replay.className = "choice-button is-primary";
     replay.innerHTML = "<span>다시 플레이</span>";
     replay.addEventListener("click", () =>
-      startEpisode(state.episodeIndex, { loadSaved: false, saveReset: true }),
+      replayEpisode(),
     );
     els.choices.appendChild(replay);
 
@@ -3295,7 +3530,7 @@ function renderChoices(scene) {
     replay.className = "choice-button is-primary";
     replay.innerHTML = `<strong>${endingName()}</strong>다시 플레이`;
     replay.addEventListener("click", () =>
-      startEpisode(state.episodeIndex, { loadSaved: false, saveReset: true }),
+      replayEpisode(),
     );
     els.choices.appendChild(replay);
 
@@ -3427,8 +3662,7 @@ function openRecordedReport(episodeId) {
   const progress = state.progress[episodeId];
   if (episodeIndex < 0 || !progress?.completed || progress.scores?._version !== SCORING_VERSION) return;
 
-  clearTimeout(episodeIntroTimer);
-  episodeIntroTimer = null;
+  cancelStoryWork();
   state.episodeIndex = episodeIndex;
   const episode = activeEpisode();
   state.sceneId = episode.scenes[progress.scene_id]?.end
@@ -3536,12 +3770,12 @@ function teacherDashboardHtml() {
   const activeLearners = Number(data.activeLearners || 0);
   const consentingLearners = Number(actualData.consentingLearners || 0);
   const consentingRecords = Number(actualData.consentingRecords || 0);
-  const eligibleTrainingRecords = Number(actualData.eligibleTrainingRecords || 0);
+  const eligibleTrainingLearners = Number(actualData.eligibleTrainingLearners || 0);
   const averageDelta = data.averageReflectionDelta === null || data.averageReflectionDelta === undefined
     ? "-"
     : `${Number(data.averageReflectionDelta) > 0 ? "+" : ""}${Number(data.averageReflectionDelta).toFixed(1)}단계`;
   const minimumSamples = Number(actualData.minimumClusteringSamples || 50);
-  const trainingReadiness = Math.min(100, (eligibleTrainingRecords / minimumSamples) * 100);
+  const trainingReadiness = Math.min(100, (eligibleTrainingLearners / minimumSamples) * 100);
   const teachingGuides = TeachingStrategy
     .recommendMany(data.weakestPrinciples || [], GUIDELINE_PRINCIPLES, 3)
     .map((guide) => `
@@ -3617,13 +3851,13 @@ function teacherDashboardHtml() {
           <div class="dashboard-section-title"><span>학습 패턴 분석</span><strong>군집분석 데이터 준비</strong></div>
           <ol class="training-data-steps" aria-label="학습 패턴 분석 데이터 준비 현황">
             <li><span>1. 동의 원본 기록</span><b>${consentingRecords}건</b></li>
-            <li><span>2. 분석 조건 충족</span><b>${eligibleTrainingRecords}건</b></li>
-            <li><span>파일럿 분석 기준</span><b>${eligibleTrainingRecords}/${minimumSamples}건</b></li>
+            <li><span>2. 분석 조건 충족 학습자</span><b>${eligibleTrainingLearners}명</b></li>
+            <li><span>파일럿 분석 기준</span><b>${eligibleTrainingLearners}/${minimumSamples}명</b></li>
           </ol>
           <div class="dashboard-bar" aria-label="군집분석 데이터 준비도 ${dashboardPercent(trainingReadiness)}">
             <span style="--dashboard-rate:${trainingReadiness}%"></span>
           </div>
-          <small>50건이 모이면 정답 라벨 없이 응답 패턴이 비슷한 학습자 집단을 탐색합니다. ${isDemo ? "현재 보이는 합성 데이터는 이 수치에서 제외됩니다." : "동의하지 않은 계정의 기록은 포함하지 않습니다."}</small>
+          <small>5개 에피소드를 완료한 동의 학습자 50명을 내부 파일럿 기준으로 사용합니다. 한 학생은 한 표본으로 세며, 표본 수가 분석의 타당성을 보장하지는 않습니다. ${isDemo ? "합성 데이터는 이 수치에서 제외됩니다." : "동의하지 않은 계정은 포함하지 않습니다."}</small>
         </section>
         <section class="teaching-guidance-section">
           <div class="dashboard-section-title"><span>교육 활용</span><strong>취약 원칙별 지도 제안</strong></div>
@@ -3645,7 +3879,7 @@ function profileHtml(profile) {
         <strong>${escapeHtml(profile.username || "-")}</strong>
       </article>
       <article>
-        <span>이름</span>
+        <span>별명</span>
         <strong>${escapeHtml(profile.display_name || "-")}</strong>
       </article>
       <article>
@@ -3663,7 +3897,7 @@ function profileHtml(profile) {
         <input type="text" value="${escapeAttribute(profile.username || "")}" readonly />
       </label>
       <label>
-        <span>이름</span>
+        <span>별명</span>
         <input id="profileNameInput" type="text" value="${escapeAttribute(profile.display_name || "")}" />
       </label>
       <label class="profile-consent">
@@ -3710,6 +3944,11 @@ function bindProfileActions() {
 
 function render() {
   clearEpisodeIntroTimer();
+  aiExplanationController?.abort();
+  aiExplanationController = null;
+  window.clearTimeout(transitionTimer);
+  transitionTimer = null;
+  els.storyStage.classList.remove("is-transitioning");
   const episode = activeEpisode();
   const scene = activeScene();
   renderTabs();
@@ -3843,7 +4082,7 @@ function render() {
     els.sceneText.innerHTML = reportHtml(activeEpisode(), response);
     els.quoteText.textContent = "";
     els.quoteText.hidden = true;
-    els.feedbackBox.textContent = "선택 기록과 사전·사후 응답이 저장되었습니다.";
+    els.feedbackBox.textContent = "선택 기록과 사전·사후 응답을 바탕으로 한 학습용 결과야.";
   } else {
     const response = activeAssessmentResponse();
     const showPreAnswer = !state.history.length && response.pre?.answer;
@@ -3875,6 +4114,7 @@ function render() {
     });
     scheduleEpisodeIntro();
   }
+  updateSaveStatus();
 }
 
 function syncNav() {
@@ -3939,11 +4179,7 @@ function escapeHtml(value) {
   });
 }
 
-els.resetButton.addEventListener("click", () =>
-  state.view === "home"
-    ? render()
-    : startEpisode(state.episodeIndex, { loadSaved: false, saveReset: true }),
-);
+els.resetButton.addEventListener("click", goHome);
 els.logoutButton.addEventListener("click", logout);
 els.storyStage.addEventListener("click", () => {
   if (state.view === "story" && state.storyMode === "intro") void finishEpisodeIntro();
@@ -3970,17 +4206,17 @@ els.usernameInput.addEventListener("input", () => {
 });
 els.loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (els.authSubmitButton.disabled) return;
   const username = els.usernameInput.value.trim();
   const displayName = els.displayNameInput.value.trim();
   const password = els.passwordInput.value;
   const passwordConfirm = els.passwordConfirmInput.value;
 
-  if (authMode === "signup") {
-    signup(username, displayName, password, passwordConfirm);
-    return;
-  }
-
-  login(username, password);
+  els.authSubmitButton.disabled = true;
+  const operation = authMode === "signup"
+    ? signup(username, displayName, password, passwordConfirm)
+    : login(username, password);
+  operation.catch(() => showAuthError("연결을 확인하고 다시 시도해줘.")).finally(() => { els.authSubmitButton.disabled = false; });
 });
 
 document.querySelectorAll(".nav-item").forEach((button) => {
@@ -4010,4 +4246,19 @@ els.teacherReturnButton.addEventListener("click", () => {
 });
 
 resetScores(episodes[0]);
-loadSession();
+window.addEventListener("beforeunload", (event) => {
+  if (!hasUnsavedProgress()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+supabaseClient?.auth.onAuthStateChange?.((event, session) => {
+  if (event === "SIGNED_OUT" && currentUser) {
+    resetSessionLearningState();
+    showLogin("로그인 세션이 종료됐어. 다시 로그인해줘.");
+  } else if (event === "SIGNED_IN" && currentUser && session?.user?.id !== currentUser.id) {
+    resetSessionLearningState();
+    showLogin("다른 탭에서 계정이 변경됐어. 사용할 계정으로 다시 로그인해줘.");
+  }
+});
+els.authSubmitButton.disabled = true;
+loadSession().catch(() => showLogin("연결을 확인하고 다시 로그인해줘.")).finally(() => { els.authSubmitButton.disabled = false; });

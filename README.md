@@ -103,6 +103,10 @@ emails, and answers are not returned.
 
 After running the latest `supabase/schema.sql`, edit and run
 `supabase/teacher-dashboard.sql` to authorize one trusted teacher account.
+For an existing installation, `supabase/migrations/20261008_teacher_dashboard_v3.sql`
+updates only the aggregate function without deleting learning records. All aggregates
+use scoring version 3. The app refuses an outdated function response rather than
+mixing incompatible scores. Deploying the website does not apply this SQL.
 
 ## Data-driven Model Pipeline
 
@@ -110,7 +114,12 @@ After running the latest `supabase/schema.sql`, edit and run
 patterns from consented records. It uses the seven principle scores, decision
 reasons, response time, before/after change, and action rates to summarize each
 group's weak principle and a matching teaching activity. Analysis is blocked
-below 50 eligible records, and synthetic demo data is never included.
+below 50 eligible independent learners, and synthetic demo data is never included.
+Each input row represents one anonymous learner with completed version-3 data;
+the dashboard readiness count requires all five episodes and coverage of seven
+principles. Duplicate learner IDs, missing values, and out-of-range features are
+rejected. The exported cluster CSV omits IDs and unknown columns. This pilot
+threshold does not establish statistical validity or a validated learner model.
 
 See `docs/ARCHITECTURE.md`, `docs/SCORING_MODEL.md`, and `ml/README.md`.
 
@@ -118,17 +127,24 @@ After a learner chooses a story action, the signed-in app asks the same Vercel
 serverless endpoint for exactly three scene-specific reason options. Only the
 episode, scene, and selected action are sent. The response uses fixed analysis
 codes so existing behavioral analytics remain comparable. Results are cached
-for the browser session, and a deterministic three-option fallback keeps the
-story usable when the AI request is unavailable or exceeds ten seconds.
+for the browser session, and a neutral three-option fallback keeps the story usable
+when the AI request is unavailable or exceeds ten seconds. A fourth option always
+allows the learner to say that no suggested reason fits or they are unsure. The
+record distinguishes generated, fallback, and uncertain reasons.
 
 ## Optional AI Result Tutor
 
 The result page can send the signed-in learner's episode score, principle
-scores, choices, decision reasons, and optional question to a Vercel serverless
+scores, choices, decision reasons, and one of four preset questions to a Vercel serverless
 function. The function verifies the Supabase access token, asks the OpenAI
 Responses API for a structured Korean explanation, and searches the YouTube
 Data API for up to three related learning videos. Display name, username, and
 password are not included in this request.
+Free-text questions are disabled to reduce accidental disclosure of personal
+information. Generated text passes an additional moderation check; invalid,
+unsafe, or unavailable responses fall back to authored educational feedback.
+Upstream requests have deadlines. A per-process 12-request/minute/user guard is
+only a prototype safeguard, not a distributed quota or a billing limit.
 
 Configure these variables in Vercel Project Settings > Environment Variables,
 then redeploy:
@@ -147,3 +163,13 @@ Vercel's local development runtime for the AI tutor.
 The GitHub Pages build sends AI tutor requests to the Vercel serverless endpoint.
 The endpoint only permits browser requests from `https://kindarabbit.github.io`
 and the production Vercel origin.
+
+## Final Verification and Operation
+
+Run `node --test tests` for scoring, report, authentication, async session, save
+retry, and API safety regressions. See `docs/FINAL_FIXES_2026-10-08.md` for the
+browser workflow checks and remaining deployment/operator tasks. Signup uses a
+nickname and requires age-14-or-older and policy confirmations; this is not an
+identity or guardian-consent verification system. Retention is one year under
+the published policy; automatic deletion, vendor retention settings, regional
+processing, and real learner safety procedures still require operator validation.

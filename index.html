@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twAIve - AI 윤리 스토리 게임</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261008-5" />
+    <link rel="stylesheet" href="css/styles.css?v=20261008-6" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="로그인">
       <div class="auth-shell">
         <button class="auth-intro" id="authIntro" type="button" aria-label="로그인 화면으로 이동">
-          <img class="auth-intro-art" src="assets/episodes/episode-deepfake.png" alt="" fetchpriority="high" />
-          <img class="auth-intro-logo" src="assets/twaive-logo.png" alt="AI 윤리 스토리 twAIve" fetchpriority="high" />
+          <img class="auth-intro-art" src="assets/episodes/episode-deepfake.webp" alt="" fetchpriority="high" />
+          <img class="auth-intro-logo" src="assets/twaive-logo.webp" alt="AI 윤리 스토리 twAIve" fetchpriority="high" />
         </button>
 
         <form class="login-card" id="loginForm" hidden>
@@ -32,8 +32,8 @@
           </label>
 
           <label class="signup-only" hidden>
-            <span>이름</span>
-            <input id="displayNameInput" name="displayName" type="text" autocomplete="name" />
+            <span>별명</span>
+            <input id="displayNameInput" name="displayName" type="text" autocomplete="nickname" maxlength="30" />
           </label>
 
           <label>
@@ -62,6 +62,15 @@
 
           <p class="auth-message signup-only" id="passwordCheckMessage" aria-live="polite" hidden></p>
 
+          <label class="auth-consent signup-only" hidden>
+            <input id="signupAgeCheck" type="checkbox" />
+            <span>만 14세 이상이에요.</span>
+          </label>
+          <label class="auth-consent signup-only" hidden>
+            <input id="signupTermsCheck" type="checkbox" />
+            <span>이용약관과 개인정보처리방침을 확인했고, 계정·학습 기록 처리에 동의해요.</span>
+          </label>
+
           <p class="login-error" id="loginError" role="alert"></p>
 
           <button class="login-button" id="authSubmitButton" type="submit">로그인</button>
@@ -78,7 +87,7 @@
     <main class="app-shell">
       <section class="play-surface game-screen" aria-label="AI 윤리 스토리 게임">
         <header class="topbar">
-          <button class="icon-button" id="resetButton" type="button" aria-label="처음으로">
+          <button class="icon-button" id="resetButton" type="button" aria-label="처음으로" title="에피소드 선택으로 돌아가기">
             <span aria-hidden="true">↺</span>
           </button>
           <div class="brand-block">
@@ -95,16 +104,16 @@
             <span id="userLabel">admin</span>
             <button class="text-button" id="logoutButton" type="button">로그아웃</button>
           </div>
+          <div class="save-status" id="saveStatus" role="status" aria-live="polite" hidden></div>
         </header>
 
         <div class="episode-tabs" id="episodeTabs" aria-label="에피소드 선택"></div>
 
         <section class="story-stage" data-expression="neutral">
           <div class="scene-art story-background" aria-hidden="true">
-            <img id="sceneArtwork" src="assets/episodes/episode-deepfake.png" alt="" />
+            <img id="sceneArtwork" src="assets/episodes/episode-deepfake.webp" alt="" />
             <div class="scene-shade"></div>
           </div>
-
           <aside class="cast-panel" aria-label="인물과 주제">
             <p class="eyebrow" id="topicLabel">딥페이크 · 초상권</p>
             <h2 id="episodeTitle">삭제되지 않은 얼굴</h2>
@@ -145,6 +154,6 @@
     <script src="js/analysis/learning-model.js?v=20261002-1"></script>
     <script src="js/analysis/demo-analytics.js?v=20261002-1"></script>
     <script src="js/scoring-engine.js?v=20261002-1"></script>
-    <script src="js/app.js?v=20261008-5"></script>
+    <script src="js/app.js?v=20261008-6"></script>
   </body>
 </html>

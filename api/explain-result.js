@@ -2,6 +2,9 @@ const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_QUESTION_LENGTH = 240;
 const MAX_CHOICES = 12;
+const RESULT_QUESTIONS = new Set(["왜 이 점수가 나왔나요?", "가장 부족한 윤리 원칙은 무엇인가요?", "제 선택에서 잘한 점은 무엇인가요?", "다음에는 어떻게 판단하면 좋을까요?"]);
+const requestWindows = new Map();
+const BLOCKED_CATEGORIES = ["self-harm/instructions", "self-harm/intent", "sexual/minors", "sexual", "violence/graphic", "hate/threatening", "harassment/threatening"];
 const EXPLANATION_LIMITS = { summary: 100, answer: 180, scoreReason: 120, nextAction: 90 };
 const REASON_CODES = ["rights", "verification", "action", "convenience", "social", "uncertain"];
 const ALLOWED_ORIGINS = new Set([
@@ -15,6 +18,46 @@ class ApiError extends Error {
     super(message);
     this.status = status;
     this.code = code;
+  }
+}
+
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, json: async () => data };
+  } catch (error) {
+    throw new ApiError(504, "UPSTREAM_TIMEOUT", "연결이 늦어지고 있어요. 잠시 후 다시 시도해주세요.");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function checkRequestLimit(userId, now = Date.now()) {
+  for (const [id, window] of requestWindows) {
+    if (now - window.start >= 60000) requestWindows.delete(id);
+  }
+  const window = requestWindows.get(userId) || { start: now, count: 0 };
+  if (window.count >= 12) throw new ApiError(429, "RATE_LIMITED", "요청이 많아요. 1분 뒤 다시 시도해주세요.");
+  window.count += 1;
+  requestWindows.set(userId, window);
+}
+
+async function checkGeneratedContent(text) {
+  const response = await fetchJsonWithTimeout("https://api.openai.com/v1/moderations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "omni-moderation-latest", input: text }),
+  }, 4000);
+  const data = await response.json();
+  const categories = data.results?.[0]?.categories;
+  if (!response.ok || !categories || BLOCKED_CATEGORIES.some(key => typeof categories[key] !== "boolean")) {
+    throw new ApiError(502, "SAFETY_CHECK_FAILED", "안전한 학습 설명을 확인하지 못했습니다.");
+  }
+  if (BLOCKED_CATEGORIES.some(key => categories[key])) {
+    throw new ApiError(502, "UNSAFE_OUTPUT", "학습에 적합한 설명으로 다시 준비해야 합니다.");
   }
 }
 
@@ -61,6 +104,8 @@ function parseRequestBody(body) {
 
 function normalizePayload(body) {
   const payload = parseRequestBody(body);
+  const question = cleanText(payload.question, MAX_QUESTION_LENGTH) || "왜 이 점수가 나왔나요?";
+  if (!RESULT_QUESTIONS.has(question)) throw new ApiError(400, "INVALID_QUESTION", "결과에 관한 추천 질문을 골라주세요.");
 
   const principles = Array.isArray(payload.principles)
     ? payload.principles.slice(0, 7).map((item) => ({
@@ -83,7 +128,7 @@ function normalizePayload(body) {
   }
 
   return {
-    question: cleanText(payload.question, MAX_QUESTION_LENGTH),
+    question,
     episode: {
       title: cleanText(payload.episode.title, 100),
       topic: cleanText(payload.episode.topic, 100),
@@ -150,18 +195,20 @@ async function verifySupabaseUser(req) {
     throw new ApiError(401, "AUTH_REQUIRED", "로그인 후 AI 설명을 이용해주세요.");
   }
 
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/user`, {
+  const response = await fetchJsonWithTimeout(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/user`, {
     headers: {
       Authorization: authorization,
       apikey: supabaseAnonKey,
     },
-  });
+  }, 6000);
 
   if (!response.ok) {
     throw new ApiError(401, "AUTH_REQUIRED", "로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
   }
 
-  return response.json();
+  const user = await response.json();
+  if (!user.id) throw new ApiError(401, "AUTH_REQUIRED", "로그인 정보를 확인하지 못했습니다.");
+  return user;
 }
 
 function explanationSchema() {
@@ -309,7 +356,7 @@ function buildFallbackExplanation(payload) {
 }
 
 async function requestOpenAiExplanationAttempt(payload, maxOutputTokens, isRetry = false) {
-  const response = await fetch(OPENAI_RESPONSES_URL, {
+  const response = await fetchJsonWithTimeout(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -375,8 +422,11 @@ async function requestOpenAiExplanationAttempt(payload, maxOutputTokens, isRetry
   }
 
   try {
-    return validateExplanation(parseStructuredOutput(outputText));
+    const explanation = validateExplanation(parseStructuredOutput(outputText));
+    await checkGeneratedContent([explanation.summary, explanation.answer, ...explanation.scoreReasons, ...explanation.nextActions].join("\n"));
+    return explanation;
   } catch (error) {
+    if (error instanceof ApiError) throw error;
     const parseError = new ApiError(502, "OPENAI_INVALID_FORMAT", "AI 설명 형식을 확인하지 못했습니다.");
     parseError.retryable = true;
     throw parseError;
@@ -409,7 +459,7 @@ async function requestOpenAiReasonOptions(payload) {
     throw new ApiError(503, "SERVER_NOT_CONFIGURED", "OpenAI API 키가 설정되지 않았습니다.");
   }
 
-  const response = await fetch(OPENAI_RESPONSES_URL, {
+  const response = await fetchJsonWithTimeout(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -424,6 +474,7 @@ async function requestOpenAiReasonOptions(payload) {
         "당신은 10대 학생 대상 AI 윤리 선택형 학습 서비스의 문항 설계자입니다.",
         "사용자가 방금 고른 행동에 대해 ‘왜 이 선택을 했어?’라고 물었을 때 직접 답하는 자연스러운 한국어 이유 세 개를 만드세요.",
         "세 이유는 서로 다른 관점이어야 하며 정답을 암시하거나 사용자를 평가하지 마세요.",
+        "위험한 행동이 피해를 줄이거나 안전을 보장한다고 합리화하지 마세요. 학생의 주관적인 가능성만 표현하고 실제 의도를 단정하지 마세요.",
         "권리·검증·후속 행동·편의·관계·불확실 중 장면에 가장 적합한 서로 다른 코드 세 개를 사용하세요.",
         "10대 학생이 실제 친구에게 말하듯 쉽고 자연스러운 반말만 사용하세요.",
         "각 이유는 ‘~해서’, ‘~같아서’, ‘~걱정돼서’, ‘~하고 싶어서’처럼 짧게 끝내고, 존댓말과 문어체, ‘~라고 생각했다’의 반복은 사용하지 마세요.",
@@ -466,6 +517,7 @@ async function requestOpenAiReasonOptions(payload) {
     if (reasons.length !== 3) {
       throw new Error("invalid reason count");
     }
+    await checkGeneratedContent(reasons.map(reason => reason.label).join("\n"));
     return reasons;
   } catch (error) {
     throw new ApiError(502, "OPENAI_ERROR", "AI 이유 추천 형식을 확인하지 못했습니다.");
@@ -504,7 +556,7 @@ async function searchYouTubeVideos(query) {
     videoEmbeddable: "true",
     key: apiKey,
   });
-  const response = await fetch(`${YOUTUBE_SEARCH_URL}?${params}`);
+  const response = await fetchJsonWithTimeout(`${YOUTUBE_SEARCH_URL}?${params}`, {}, 4000);
   const responseData = await response.json().catch(() => ({}));
   if (!response.ok) {
     return { videos: [], searchUrl, provider: "youtube-search-link" };
@@ -542,7 +594,8 @@ async function handler(req, res) {
   }
 
   try {
-    await verifySupabaseUser(req);
+    const user = await verifySupabaseUser(req);
+    checkRequestLimit(user.id);
     const requestBody = parseRequestBody(req.body);
     if (requestBody.task === "reason_options") {
       const payload = normalizeReasonPayload(requestBody);
@@ -556,7 +609,7 @@ async function handler(req, res) {
     const payload = normalizePayload(requestBody);
     const result = await requestOpenAiExplanation(payload);
     const explanation = result.explanation;
-    const videoResult = await searchYouTubeVideos(explanation.videoSearchQuery);
+    const videoResult = await searchYouTubeVideos(explanation.videoSearchQuery).catch(() => ({ videos: [], searchUrl: "", provider: "unavailable" }));
 
     return res.status(200).json({
       explanation: {
@@ -581,6 +634,10 @@ async function handler(req, res) {
 
 module.exports = handler;
 module.exports.__test = {
+  BLOCKED_CATEGORIES,
+  checkRequestLimit,
+  fetchJsonWithTimeout,
+  checkGeneratedContent,
   applyCorsHeaders,
   cleanText,
   decodeHtmlEntities,

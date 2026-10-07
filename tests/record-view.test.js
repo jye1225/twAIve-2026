@@ -16,6 +16,7 @@ const context = {
   URL,
   syncNav() {},
   render() {},
+  cancelStoryWork() {},
   els: { sceneText: { scrollTop: 500 } },
 };
 vm.createContext(context);

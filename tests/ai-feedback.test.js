@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const handler = require("../api/explain-result.js");
-const { validateExplanation, normalizePayload, buildFallbackExplanation } = handler.__test;
+const { validateExplanation, normalizePayload, buildFallbackExplanation, BLOCKED_CATEGORIES } = handler.__test;
 
 const explanation = {
   summary: "AI가 위로한다는 이유만으로 친구가 안전하다고 판단한 선택이 반영됐어.",
@@ -46,7 +46,7 @@ assert.equal(validateExplanation({ ...explanation, answer: "첫 문장이야.\n\
 assert.equal(validateExplanation(buildFallbackExplanation(normalizePayload(payload))).nextActions.length, 2);
 
 // Exercise the full API handler with fake auth/model responses, never real keys or charges.
-async function requestWithResponses(responses) {
+async function requestWithResponses(responses, moderation = { results: [{ categories: Object.fromEntries(BLOCKED_CATEGORIES.map(key => [key, false])) }] }) {
   const originalFetch = global.fetch;
   const names = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "OPENAI_API_KEY", "YOUTUBE_API_KEY"];
   const oldEnv = Object.fromEntries(names.map(name => [name, process.env[name]]));
@@ -58,6 +58,7 @@ async function requestWithResponses(responses) {
     delete process.env.YOUTUBE_API_KEY;
     global.fetch = async (url, options) => {
       if (url === "https://auth.example.test/auth/v1/user") return { ok: true, json: async () => ({ id: "test-only" }) };
+      if (url === "https://api.openai.com/v1/moderations") return { ok: true, json: async () => moderation };
       assert.equal(url, "https://api.openai.com/v1/responses");
       requests.push(JSON.parse(options.body));
       const response = responses.shift();
@@ -139,6 +140,14 @@ async function main() {
   assert.equal(fallback.body.explanationSource, "local-fallback");
   assert.ok(fallback.body.explanation.answer.endsWith("."));
   assert.equal(fallback.body.explanation.nextActions.length, 2);
+  for (const moderation of [
+    { results: [{ categories: {} }] },
+    { results: [{ categories: { ...Object.fromEntries(BLOCKED_CATEGORIES.map(key => [key, false])), "self-harm/instructions": true } }] },
+  ]) {
+    const safeFallback = await requestWithResponses([completed(explanation)], moderation);
+    assert.equal(safeFallback.body.explanationSource, "local-fallback");
+    assert.equal(safeFallback.requests.length, 1, "Safety failures must not trigger repeated generation");
+  }
   console.log("PASS: teen feedback, complete short sentences, bounded retry/fallback, no truncation, sectioned safe rendering");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
