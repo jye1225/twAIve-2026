@@ -4,16 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>twAIve - AI 윤리 스토리 게임</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261007-9" />
+    <link rel="stylesheet" href="css/styles.css?v=20261008-1" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="로그인">
       <div class="auth-shell">
-        <div class="auth-visual" aria-hidden="true">
+        <button class="auth-intro" id="authIntro" type="button" aria-label="로그인 화면으로 이동">
           <img src="assets/episodes/episode-deepfake.png" alt="" fetchpriority="high" />
-        </div>
+          <span class="auth-intro-brand">twAIve</span>
+          <span class="auth-intro-title">AI 윤리 스토리</span>
+        </button>
 
-        <form class="login-card" id="loginForm">
+        <form class="login-card" id="loginForm" hidden>
           <header class="auth-heading">
             <p class="eyebrow">twAIve</p>
             <h1>AI 윤리 스토리</h1>
@@ -144,6 +146,6 @@
     <script src="js/analysis/learning-model.js?v=20261002-1"></script>
     <script src="js/analysis/demo-analytics.js?v=20261002-1"></script>
     <script src="js/scoring-engine.js?v=20261002-1"></script>
-    <script src="js/app.js?v=20261007-9"></script>
+    <script src="js/app.js?v=20261008-1"></script>
   </body>
 </html>

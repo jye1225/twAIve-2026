@@ -1129,9 +1129,11 @@ const AI_EXPLANATION_API_URL = window.location.hostname === "kindarabbit.github.
 let authMode = "login";
 let currentUser = null;
 let checkedUsername = "";
+let authIntroTimer = null;
 
 const els = {
   loginScreen: document.getElementById("loginScreen"),
+  authIntro: document.getElementById("authIntro"),
   loginForm: document.getElementById("loginForm"),
   authModeCopy: document.getElementById("authModeCopy"),
   showLoginButton: document.getElementById("showLoginButton"),
@@ -1174,6 +1176,7 @@ function isLoggedIn() {
 }
 
 function showApp() {
+  finishAuthIntro(false);
   document.body.classList.add("is-authenticated");
   els.userLabel.textContent =
     state.profile?.display_name ||
@@ -1181,6 +1184,27 @@ function showApp() {
     state.profile?.username ||
     currentUser?.user_metadata?.username ||
     "사용자";
+}
+
+function focusAuthInput() {
+  requestAnimationFrame(() => {
+    if (!document.body.classList.contains("is-authenticated") && !els.loginForm.hidden) {
+      els.usernameInput.focus({ preventScroll: true });
+    }
+  });
+}
+
+function finishAuthIntro(focus = true) {
+  window.clearTimeout(authIntroTimer);
+  authIntroTimer = null;
+  if (els.authIntro.hidden) return;
+  els.authIntro.hidden = true;
+  els.loginForm.hidden = false;
+  if (focus) focusAuthInput();
+}
+
+function startAuthIntro() {
+  authIntroTimer = window.setTimeout(finishAuthIntro, EPISODE_INTRO_DURATION);
 }
 
 function setAuthMode(mode) {
@@ -1201,6 +1225,7 @@ function setAuthMode(mode) {
   els.authModeCopy.textContent = isSignup ? "회원가입" : "로그인";
   els.loginError.textContent = "";
   showPasswordCheckMessage("", "");
+  els.loginForm.scrollTop = 0;
 }
 
 function showLogin(message = "") {
@@ -1210,7 +1235,7 @@ function showLogin(message = "") {
   els.passwordInput.value = "";
   els.passwordConfirmInput.value = "";
   showPasswordCheckMessage("", "");
-  requestAnimationFrame(() => els.usernameInput.focus({ preventScroll: true }));
+  if (els.authIntro.hidden) focusAuthInput();
 }
 
 function showAuthError(message) {
@@ -3892,6 +3917,7 @@ els.storyStage.addEventListener("keydown", (event) => {
   }
 });
 els.showLoginButton.addEventListener("click", () => setAuthMode("login"));
+els.authIntro.addEventListener("click", () => finishAuthIntro());
 els.showSignupButton.addEventListener("click", () => setAuthMode("signup"));
 els.checkUsernameButton.addEventListener("click", checkUsernameAvailability);
 els.checkPasswordButton.addEventListener("click", checkPasswordMatch);
@@ -3936,4 +3962,5 @@ els.teacherReturnButton.addEventListener("click", () => {
 });
 
 resetScores(episodes[0]);
+startAuthIntro();
 loadSession();
