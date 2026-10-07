@@ -1129,7 +1129,6 @@ const AI_EXPLANATION_API_URL = window.location.hostname === "kindarabbit.github.
 let authMode = "login";
 let currentUser = null;
 let checkedUsername = "";
-let authIntroTimer = null;
 
 const els = {
   loginScreen: document.getElementById("loginScreen"),
@@ -1195,16 +1194,10 @@ function focusAuthInput() {
 }
 
 function finishAuthIntro(focus = true) {
-  window.clearTimeout(authIntroTimer);
-  authIntroTimer = null;
   if (els.authIntro.hidden) return;
   els.authIntro.hidden = true;
   els.loginForm.hidden = false;
   if (focus) focusAuthInput();
-}
-
-function startAuthIntro() {
-  authIntroTimer = window.setTimeout(finishAuthIntro, EPISODE_INTRO_DURATION);
 }
 
 function setAuthMode(mode) {
@@ -2325,6 +2318,7 @@ function bindReportActions() {
     button.addEventListener("click", () => {
       state.reportTab = button.dataset.reportTab;
       const url = new URL(window.location.href);
+      url.searchParams.delete("view");
       url.searchParams.set("report", state.reportTab);
       url.searchParams.set("episode", activeEpisode().id);
       window.history.replaceState({}, "", url);
@@ -2336,6 +2330,7 @@ function bindReportActions() {
 
 function openReportDetailInNewTab() {
   const url = new URL(window.location.href);
+  url.searchParams.delete("view");
   url.searchParams.set("report", "analysis");
   url.searchParams.set("episode", activeEpisode().id);
   window.open(url.toString(), "_blank", "noopener");
@@ -2345,20 +2340,37 @@ async function applyRequestedReportRoute() {
   const params = new URLSearchParams(window.location.search);
   const requestedTab = params.get("report");
   const requestedEpisodeId = params.get("episode");
-  const validTabs = ["summary", "analysis", "ai", "concept"];
-  if (!validTabs.includes(requestedTab) || !requestedEpisodeId) return false;
+  const validTabs = ["summary", "analysis", "ai"];
+  const isLearningRoute = requestedTab === "concept" ||
+    (params.get("view") === "learn" && !validTabs.includes(requestedTab));
+  if ((!validTabs.includes(requestedTab) && !isLearningRoute) || !requestedEpisodeId) return false;
 
   const episodeIndex = episodes.findIndex((episode) => episode.id === requestedEpisodeId);
   if (episodeIndex < 0) return false;
 
   state.episodeIndex = episodeIndex;
   const loaded = await loadEpisodeProgress(episodeIndex);
+  if (isLearningRoute) {
+    setLearningView(requestedEpisodeId);
+    return true;
+  }
   if (!loaded) return false;
 
   state.view = "story";
   state.storyMode = "report";
   state.reportTab = requestedTab;
   return true;
+}
+
+function setLearningView(episodeId) {
+  state.view = "learn";
+  state.learningEpisodeId = episodeId;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("report");
+  url.searchParams.set("view", "learn");
+  url.searchParams.set("episode", episodeId);
+  window.history.replaceState({}, "", url);
+  syncNav();
 }
 
 function reportInsightsHtml(episode, response, diagnosis) {
@@ -2397,7 +2409,6 @@ function reportDetailTabsHtml(activeTab) {
   const tabs = [
     ["analysis", "상세 분석"],
     ["ai", "AI 설명"],
-    ["concept", "핵심 개념"],
   ];
 
   return `
@@ -2421,15 +2432,13 @@ function reportDetailTabsHtml(activeTab) {
 
 function reportDetailHtml(episode, response) {
   const diagnosis = guidelineDiagnosis();
-  const activeTab = ["analysis", "ai", "concept"].includes(state.reportTab)
+  const activeTab = ["analysis", "ai"].includes(state.reportTab)
     ? state.reportTab
     : "analysis";
   let content = "";
 
   if (activeTab === "ai") {
     content = aiCoachHtml();
-  } else if (activeTab === "concept") {
-    content = `<section class="report-learning">${learningHtml(episode.id)}</section>`;
   } else {
     content = `
       <section class="report-analysis-panel" aria-label="상세 분석 보기">
@@ -3165,12 +3174,24 @@ function renderChoices(scene) {
       summary.addEventListener("click", () => {
         state.reportTab = "summary";
         const url = new URL(window.location.href);
+        url.searchParams.delete("view");
         url.searchParams.delete("report");
         url.searchParams.delete("episode");
         window.history.replaceState({}, "", url);
         render();
       });
       els.choices.appendChild(summary);
+
+      const concepts = document.createElement("button");
+      concepts.type = "button";
+      concepts.className = "choice-button report-learning-button";
+      concepts.innerHTML = "<span>핵심 개념 보기</span>";
+      concepts.addEventListener("click", () => {
+        setLearningView(activeEpisode().id);
+        render();
+        els.sceneText.scrollTop = 0;
+      });
+      els.choices.appendChild(concepts);
       return;
     }
 
@@ -3402,6 +3423,7 @@ function openRecordedReport(episodeId) {
   state.storyMode = "report";
   state.reportTab = "summary";
   const url = new URL(window.location.href);
+  url.searchParams.delete("view");
   url.searchParams.set("report", "summary");
   url.searchParams.set("episode", episodeId);
   window.history.replaceState(null, "", url);
@@ -3451,7 +3473,7 @@ function bindRecordActions() {
 function bindLearningActions() {
   document.querySelectorAll("[data-learning-episode]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.learningEpisodeId = button.dataset.learningEpisode;
+      setLearningView(button.dataset.learningEpisode);
       render();
     });
   });
@@ -3947,7 +3969,13 @@ document.querySelectorAll(".nav-item").forEach((button) => {
       state.recordEpisodeId = activeEpisode().id;
     }
     if (button.dataset.view === "learn") {
-      state.learningEpisodeId = activeEpisode().id;
+      setLearningView(activeEpisode().id);
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("view");
+      url.searchParams.delete("report");
+      url.searchParams.delete("episode");
+      window.history.replaceState({}, "", url);
     }
     state.view = button.dataset.view === "story" ? "home" : button.dataset.view;
     syncNav();
@@ -3962,5 +3990,4 @@ els.teacherReturnButton.addEventListener("click", () => {
 });
 
 resetScores(episodes[0]);
-startAuthIntro();
 loadSession();

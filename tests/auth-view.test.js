@@ -7,8 +7,6 @@ const classes = new Set(["is-authenticated", "is-visual-novel", "is-game-home", 
 const signupItems = [{ hidden: true }, { hidden: true }];
 const loginItems = [{ hidden: false }];
 let focusOptions;
-const timers = new Map();
-let nextTimer = 0;
 const els = {
   authIntro: { hidden: false },
   loginForm: { hidden: true, scrollTop: 120 },
@@ -32,18 +30,14 @@ const context = {
   } } },
   els,
   state: { profile: {} },
-  window: {
-    setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
-    clearTimeout(id) { timers.delete(id); },
-  },
   requestAnimationFrame(callback) { callback(); },
   showPasswordCheckMessage() {},
 };
 vm.createContext(context);
 vm.runInContext(
-  'let authMode = "login"; let checkedUsername = "previous-user"; let authIntroTimer = null; let currentUser = null; const EPISODE_INTRO_DURATION = 1900;\n' +
+  'let authMode = "login"; let checkedUsername = "previous-user"; let currentUser = null;\n' +
   source.slice(source.indexOf("function showApp("), source.indexOf("function showAuthError(")) +
-  "\nObject.assign(this, {setAuthMode, showLogin, startAuthIntro, finishAuthIntro, showApp});",
+  "\nObject.assign(this, {setAuthMode, showLogin, finishAuthIntro, showApp});",
   context,
 );
 
@@ -70,10 +64,8 @@ assert.equal(els.loginError.textContent, "로그인 오류 안내");
 assert.equal(els.authModeCopy.textContent, "로그인");
 assert.equal(focusOptions, undefined, "Do not focus the hidden login form during the splash");
 
-context.startAuthIntro();
-assert.equal(timers.get(nextTimer).delay, 1900);
-timers.get(nextTimer).callback();
-assert.equal(timers.size, 0);
+assert.doesNotMatch(source, /authIntroTimer|startAuthIntro/, "The startup screen must have no auto-advance timer");
+context.finishAuthIntro();
 assert.equal(els.authIntro.hidden, true);
 assert.equal(els.loginForm.hidden, false);
 assert.equal(focusOptions.preventScroll, true);
@@ -85,12 +77,13 @@ assert.equal(els.authIntro.hidden, true, "Mode switches and logout must not repl
 els.authIntro.hidden = false;
 els.loginForm.hidden = true;
 focusOptions = undefined;
-context.startAuthIntro();
 context.showApp();
-assert.equal(timers.size, 0, "An existing session must cancel the splash timer");
 assert.equal(focusOptions, undefined, "Returning to the game must not focus a hidden login field");
 assert.equal(classes.has("is-authenticated"), true);
 context.showLogin();
 assert.equal(els.authIntro.hidden, true);
 assert.equal(focusOptions.preventScroll, true);
-console.log("PASS: auth modes, splash timer/skip, session cancellation, logout, and focus scroll prevention");
+const html = fs.readFileSync("index.html", "utf8");
+assert.match(html, /class="auth-intro-logo"[^>]+src="assets\/twaive-logo.png"/);
+assert.doesNotMatch(html, /auth-intro-title|auth-intro-brand/);
+console.log("PASS: click-only logo splash, auth modes, session bypass, logout, and focus scroll prevention");

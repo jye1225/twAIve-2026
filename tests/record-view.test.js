@@ -103,5 +103,5 @@ assert.doesNotMatch(context.recordHtml(), /record-score-summary/);
 const css = fs.readFileSync("css/styles.css", "utf8");
 assert.doesNotMatch(css, /#405b7c|#6c7e94/i);
 assert.doesNotMatch(css, /\.story-stage\.is-scene-stage \+ \.choice-dock \.choice-button > span\s*\{\s*font-size: var\(--choice-copy-size\)/);
-assert.match(source, /const validTabs = \["summary", "analysis", "ai", "concept"\]/);
+assert.match(source, /const validTabs = \["summary", "analysis", "ai"\]/);
 console.log("PASS: episode record scores, read-only saved report restore, incomplete/version guards, and theme regressions");
