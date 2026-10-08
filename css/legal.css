@@ -30,6 +30,8 @@ body {
   font-family:
     "GmarketSans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo",
     "Malgun Gothic", system-ui, sans-serif;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 a {
@@ -68,15 +70,15 @@ a:focus-visible {
 }
 
 .legal-header h1 {
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  line-height: 1.1;
+  font-size: 2.5rem;
+  line-height: 1.35;
 }
 
 .legal-content {
   padding: clamp(24px, 6vw, 52px);
 }
 
-.draft-notice {
+.legal-content .draft-notice {
   margin: 0 0 32px;
   padding: 14px 16px;
   border-left: 5px solid var(--amber);
@@ -109,7 +111,12 @@ a:focus-visible {
   color: #35475f;
 }
 
-.legal-content ul {
+.legal-content p + p {
+  margin-top: 12px;
+}
+
+.legal-content ul,
+.legal-content ol {
   margin: 10px 0 0;
   padding-left: 1.2rem;
 }
@@ -118,38 +125,48 @@ a:focus-visible {
   margin-top: 7px;
 }
 
-.needs-input {
-  color: #8b4f00;
-  font-weight: 900;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  margin-top: 14px;
-  border: 1px solid var(--line);
-}
-
-table {
-  width: 100%;
-  min-width: 620px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 13px 14px;
+.legal-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 0 28px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
-  text-align: left;
-  vertical-align: top;
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
-th {
+.legal-data-list {
+  margin: 16px 0 0;
+}
+
+.legal-data-list > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.legal-data-list dt {
   color: var(--blue-strong);
-  background: var(--blue-soft);
+  font-weight: 700;
+  line-height: 1.7;
 }
 
-tr:last-child td {
-  border-bottom: 0;
+.legal-data-list dd {
+  min-width: 0;
+  margin: 0;
+  color: #35475f;
+  line-height: 1.75;
+}
+
+.legal-content .verification-note {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--amber);
+  color: #654300;
+  background: #fff8e7;
 }
 
 .legal-footer {
@@ -173,5 +190,14 @@ tr:last-child td {
   .legal-content section + section {
     margin-top: 28px;
     padding-top: 24px;
+  }
+
+  .legal-header h1 {
+    font-size: 1.9rem;
+  }
+
+  .legal-data-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 }

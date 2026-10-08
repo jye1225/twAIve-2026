@@ -3887,7 +3887,7 @@ function profileHtml(profile) {
         <strong>${escapeHtml(formatProfileDate(profile.created_at))}</strong>
       </article>
       <article>
-        <span>익명 연구 활용</span>
+        <span>졸업 연구 활용</span>
         <strong>${profile.analytics_consent ? "동의" : "미동의"}</strong>
       </article>
     </div>
@@ -3902,8 +3902,13 @@ function profileHtml(profile) {
       </label>
       <label class="profile-consent">
         <input id="analyticsConsentInput" type="checkbox" ${profile.analytics_consent ? "checked" : ""} />
-        <span>익명화된 선택 기록을 졸업 연구의 모델 검증에 활용하는 데 동의해요.</span>
+        <span>선택 기록을 식별정보와 분리해 졸업 연구의 모델 검증에 활용하는 데 동의해요. (선택)</span>
       </label>
+      <nav class="profile-policy-links" aria-label="프로필과 연구 활용 정책">
+        <a href="privacy.html#research">연구 활용·철회 안내</a>
+        <a href="privacy.html#rights">기록 삭제 요청</a>
+        <a href="terms.html">이용약관</a>
+      </nav>
       <button class="choice-button is-primary profile-save" type="submit">
         <span>프로필 수정 저장</span>
       </button>

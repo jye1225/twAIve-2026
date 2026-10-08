@@ -6415,6 +6415,20 @@ body.is-visual-novel .support-profile-form .profile-save {
   text-align: center;
 }
 
+.profile-form .profile-policy-links {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+body.is-visual-novel .profile-policy-links a {
+  color: #ffd0ed;
+  text-underline-offset: 3px;
+}
+
 body.is-visual-novel .story-stage.is-support-stage .learning-analysis,
 body.is-visual-novel .story-stage.is-report-detail .learning-analysis {
   border-color: rgba(255, 165, 221, 0.2);
