@@ -2810,7 +2810,7 @@ function progressSummaryText() {
     `완료한 에피소드: ${completedItems.length} / ${episodes.length}`,
     `평균 AI 윤리 감수성: ${completedItems.length ? `${averageScore}점` : "진단 전"}`,
     `최근 학습: ${recentItem ? recentItem.episode.title : "-"}`,
-    `최근 엔딩: ${recentItem?.progress.ending || "-"}`,
+    `최근 엔딩: ${displayEndingName(recentItem?.progress.ending) || "-"}`,
     `종합 진단: ${overallDiagnosis(completedItems.length, averageScore)}`,
   ].join("\n");
 }
@@ -3286,7 +3286,13 @@ function endingName() {
   if (!state.history.length) return "진단 전";
   if (avg >= 75) return "Good End · 책임 있는 실천";
   if (avg >= 50) return "Normal End · 기준을 배우는 중";
-  return "다시 연습 · 다음에는 다르게 해보기";
+  return "Bad End · 다음에는 다르게 해보기";
+}
+
+function displayEndingName(ending) {
+  return ending === "다시 연습 · 다음에는 다르게 해보기"
+    ? "Bad End · 다음에는 다르게 해보기"
+    : ending;
 }
 
 function endingClassName() {
@@ -3323,7 +3329,7 @@ function episodeProgressLabel(episode) {
     return "시작 전";
   }
   if (progress.completed) {
-    return `${progress.ending || "완료"} · ${progress.score ?? "-"}점`;
+    return `${displayEndingName(progress.ending) || "완료"} · ${progress.score ?? "-"}점`;
   }
   return `${progress.score ?? "-"}점 · 진행 기록 있음`;
 }

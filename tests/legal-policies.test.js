@@ -46,7 +46,7 @@ assert.ok(app.includes('href="privacy.html#research"'));
 assert.ok(app.includes('href="privacy.html#rights"'));
 assert.ok(app.includes("선택 기록을 식별정보와 분리해"));
 assert.doesNotMatch(app, /익명화된 선택 기록을 졸업 연구/);
-assert.ok(index.includes("js/app.js?v=20261008-7"));
+assert.ok(index.includes("js/app.js?v=20261008-8"));
 assert.doesNotMatch(css, /font-size:[^;]*vw|#405b7c|#6c7e94/i);
 assert.ok(css.includes("overflow-wrap: anywhere"));
 assert.ok(css.includes("minmax(0, 1fr)"));
